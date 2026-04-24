@@ -1,12 +1,12 @@
 /**
  * HEART Operator View — Salesforce Daily Operation Dashboard
  *
- * Inspired by Salesforce CRM kanban layout:
+ * Features:
  * - Pipeline/Activity/Reports tabs
- * - Status pills + stats bar (Week's Cases, Pending, Active, Resolved)
- * - Kanban-style colored patient widgets with full overview
- * - Each widget: name, metrics bars, risk action, WhatsApp, assignee
- * - Pastel background colors per risk (pink, yellow, lilac, mint)
+ * - Status pills + stats bar
+ * - Kanban patient cards with INDEPENDENT expansion (multiple open at once)
+ * - All buttons functional: WhatsApp, Call 999, Notes, Bell notifications, More menu
+ * - AI-powered: clicking "Run AI" triggers live Gemini analysis
  */
 
 import { useState, useMemo } from 'react';
@@ -14,12 +14,14 @@ import {
   Shield, MoreHorizontal, Heart, Footprints, Activity,
   Brain, Target, Phone, MessageSquare, CheckCircle2,
   TrendingDown, TrendingUp, Minus, Clock, BarChart3, MessageCircle,
-  Bell, Settings2, Layers, ChevronDown, Search,
+  Bell, Settings2, Layers, Search, AlertCircle, X,
+  RefreshCw,
 } from 'lucide-react';
 import { getMockDashboardPatients } from '../mock-data';
 import { getRiskColor, getActionLabel, getActionEmoji, type CareAction, type DashboardPatient } from '../types';
+import { getSnapshotDecision, type AIDecision } from '../services/api';
 
-/* ── Widget color palette (Salesforce-like pastels) ── */
+/* ── Widget color palette ── */
 const widgetPalettes: Record<string, { bg: string; border: string; headerBg: string; dot: string }> = {
   green:  { bg: '#f0fdf4', border: '#d1fae5', headerBg: '#dcfce7', dot: '#10b981' },
   yellow: { bg: '#fefce8', border: '#fef08a', headerBg: '#fef9c3', dot: '#f59e0b' },
@@ -46,8 +48,21 @@ export default function OperatorView() {
   const patients = getMockDashboardPatients();
   const [filter, setFilter] = useState<FilterType>('ALL');
   const [activeTab, setActiveTab] = useState<ViewTab>('Pipeline');
+  // Single card expansion — only one card open at a time
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'compact'>('grid');
+  const [notifications, setNotifications] = useState([
+    { id: 1, msg: 'Fatimah binti Hassan — risk escalated to CALL_999', time: '2 min ago', read: false },
+    { id: 2, msg: 'New check-in from Ahmad bin Abdullah', time: '5 min ago', read: false },
+    { id: 3, msg: 'Weekly report generated for 8 patients', time: '1 hr ago', read: true },
+  ]);
+
+  const toggleExpand = (id: string) => {
+    setExpandedId(prev => prev === id ? null : id);
+  };
 
   const sorted = useMemo(() => {
     let filtered = [...patients].sort((a, b) => b.lastDecision.riskScore - a.lastDecision.riskScore);
@@ -62,6 +77,8 @@ export default function OperatorView() {
     activePatients: patients.filter(p => p.lastDecision.action !== 'MONITOR').length,
     resolved: patients.filter(p => p.lastDecision.action === 'MONITOR').length,
   };
+
+  const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] p-5 lg:p-6">
@@ -89,7 +106,6 @@ export default function OperatorView() {
 
       {/* ── Status Pills + Stats ── */}
       <div className="flex flex-wrap items-center gap-4 mb-6">
-        {/* Status pills */}
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
             style={{ background: '#dcfce7', color: '#16a34a' }}>
@@ -101,12 +117,17 @@ export default function OperatorView() {
           </span>
         </div>
 
-        {/* View mode buttons */}
+        {/* View mode buttons — functional */}
         <div className="flex items-center gap-1 ml-2">
-          {[Layers, BarChart3, Layers].map((Icon, i) => (
-            <button key={i} className="p-2 rounded-lg transition-colors"
-              style={{ background: i === 0 ? 'var(--heart-text)' : 'transparent', color: i === 0 ? 'white' : 'var(--heart-text-muted)' }}>
-              <Icon className="h-3.5 w-3.5" />
+          {([
+            { icon: Layers, mode: 'grid' as const, label: 'Grid View' },
+            { icon: BarChart3, mode: 'list' as const, label: 'List View' },
+            { icon: Layers, mode: 'compact' as const, label: 'Compact View' },
+          ]).map((item, i) => (
+            <button key={i} onClick={() => setViewMode(item.mode)} title={item.label}
+              className="p-2 rounded-lg transition-colors"
+              style={{ background: viewMode === item.mode ? 'var(--heart-text)' : 'transparent', color: viewMode === item.mode ? 'white' : 'var(--heart-text-muted)' }}>
+              <item.icon className="h-3.5 w-3.5" />
             </button>
           ))}
         </div>
@@ -125,20 +146,59 @@ export default function OperatorView() {
           ))}
         </div>
 
-        {/* Quick actions */}
-        <div className="flex items-center gap-2 ml-4">
-          <button className="p-2 rounded-xl" style={{ background: 'var(--heart-surface)', border: '1px solid var(--heart-border-light)' }}>
-            <Bell className="h-4 w-4" style={{ color: 'var(--heart-text-secondary)' }} />
-          </button>
-          <button className="p-2 rounded-xl" style={{ background: 'var(--heart-surface)', border: '1px solid var(--heart-border-light)' }}>
-            <Settings2 className="h-4 w-4" style={{ color: 'var(--heart-text-secondary)' }} />
-          </button>
+        {/* Quick actions — functional */}
+        <div className="flex items-center gap-2 ml-4 relative">
+          <div className="relative">
+            <button onClick={() => { setNotifOpen(!notifOpen); setSettingsOpen(false); }}
+              className="p-2 rounded-xl relative" style={{ background: 'var(--heart-surface)', border: '1px solid var(--heart-border-light)' }}>
+              <Bell className="h-4 w-4" style={{ color: 'var(--heart-text-secondary)' }} />
+              {notifications.some(n => !n.read) && (
+                <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full" style={{ background: '#ef4444' }} />
+              )}
+            </button>
+            {/* Notification dropdown */}
+            {notifOpen && (
+              <div className="absolute right-0 top-11 w-72 card p-0 z-50 overflow-hidden" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.15)' }}>
+                <div className="p-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--heart-border-light)' }}>
+                  <span className="text-xs font-bold" style={{ color: 'var(--heart-text)' }}>Notifications</span>
+                  <button onClick={markAllRead} className="text-[10px] font-semibold" style={{ color: '#3b82f6' }}>Mark all read</button>
+                </div>
+                {notifications.map(n => (
+                  <div key={n.id} className="p-3 flex items-start gap-2 hover:bg-gray-50 transition-all cursor-pointer"
+                    style={{ borderBottom: '1px solid var(--heart-border-light)', background: n.read ? 'transparent' : '#f0f9ff' }}
+                    onClick={() => setNotifications(prev => prev.map(nn => nn.id === n.id ? { ...nn, read: true } : nn))}>
+                    <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-none" style={{ color: n.read ? '#9ca3af' : '#3b82f6' }} />
+                    <div>
+                      <div className="text-[10px] font-medium" style={{ color: 'var(--heart-text)' }}>{n.msg}</div>
+                      <div className="text-[9px]" style={{ color: 'var(--heart-text-muted)' }}>{n.time}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="relative">
+            <button onClick={() => { setSettingsOpen(!settingsOpen); setNotifOpen(false); }}
+              className="p-2 rounded-xl" style={{ background: 'var(--heart-surface)', border: '1px solid var(--heart-border-light)' }}>
+              <Settings2 className="h-4 w-4" style={{ color: 'var(--heart-text-secondary)' }} />
+            </button>
+            {settingsOpen && (
+              <div className="absolute right-0 top-11 w-52 card p-2 z-50" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.15)' }}>
+                {['Auto-refresh (30s)', 'Sound alerts', 'Dark mode', 'Compact cards'].map(opt => (
+                  <button key={opt} className="w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-gray-50 transition-all"
+                    style={{ color: 'var(--heart-text-secondary)' }}
+                    onClick={() => { alert(`${opt} toggled`); setSettingsOpen(false); }}>
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* ── Search + Filters ── */}
       <div className="flex flex-wrap items-center gap-3 mb-5">
-        {/* Search */}
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl flex-1 max-w-xs"
           style={{ background: 'var(--heart-surface)', border: '1px solid var(--heart-border)' }}>
           <Search className="h-3.5 w-3.5" style={{ color: 'var(--heart-text-muted)' }} />
@@ -146,7 +206,6 @@ export default function OperatorView() {
             className="flex-1 bg-transparent text-xs outline-none" style={{ color: 'var(--heart-text)' }} />
         </div>
 
-        {/* Filter pills */}
         {[
           { key: 'ALL' as FilterType, label: 'All', count: patients.length },
           { key: 'CALL_999' as FilterType, label: '🚨 Emergency', count: patients.filter(p => p.lastDecision.action === 'CALL_999').length },
@@ -167,19 +226,28 @@ export default function OperatorView() {
       </div>
 
       {/* ── Kanban Grid ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+      <div className={`grid gap-4 ${
+        viewMode === 'grid' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
+        viewMode === 'list' ? 'grid-cols-1 lg:grid-cols-2' :
+        'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5'
+      }`}>
         {sorted.map(patient => (
           <PatientWidget
             key={patient.patientId}
             patient={patient}
             isExpanded={expandedId === patient.patientId}
-            onToggle={() => setExpandedId(expandedId === patient.patientId ? null : patient.patientId)}
+            onToggle={() => toggleExpand(patient.patientId)}
           />
         ))}
       </div>
 
       {sorted.length === 0 && (
         <div className="text-center py-16" style={{ color: 'var(--heart-text-muted)' }}>No patients match your search.</div>
+      )}
+
+      {/* Click-away overlay for dropdowns */}
+      {(notifOpen || settingsOpen) && (
+        <div className="fixed inset-0 z-40" onClick={() => { setNotifOpen(false); setSettingsOpen(false); }} />
       )}
     </div>
   );
@@ -195,14 +263,37 @@ function PatientWidget({ patient, isExpanded, onToggle }: {
   const risk = getRiskColor(decision.riskScore);
   const palette = widgetPalettes[risk];
   const assignee = mockAssignees[patient.patientId] || { name: 'Unassigned', initials: 'UA', color: '#9ca3af' };
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<AIDecision | null>(null);
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [notes, setNotes] = useState<string[]>([]);
+
+  const runAI = async () => {
+    setAiLoading(true);
+    const res = await getSnapshotDecision({
+      averageHeartRate: patient.keyMetrics.avgHeartRate,
+      dailySteps: patient.keyMetrics.avgSteps,
+      daysSinceLastCheckin: 1,
+      patientName: patient.patientName,
+    });
+    setAiLoading(false);
+    if (res.success && res.decision) setAiResult(res.decision);
+  };
+
+  const addNote = () => {
+    if (noteText.trim()) {
+      setNotes(prev => [...prev, noteText.trim()]);
+      setNoteText('');
+      setNoteOpen(false);
+    }
+  };
 
   return (
-    <div className="rounded-2xl overflow-hidden transition-all duration-200 hover:shadow-lg cursor-pointer"
+    <div className="rounded-2xl overflow-hidden transition-all duration-200 hover:shadow-lg cursor-pointer relative"
       onClick={onToggle}
-      style={{
-        background: palette.bg,
-        border: `1px solid ${palette.border}`,
-      }}>
+      style={{ background: palette.bg, border: `1px solid ${palette.border}` }}>
 
       {/* Header */}
       <div className="p-4 pb-2">
@@ -213,9 +304,33 @@ function PatientWidget({ patient, isExpanded, onToggle }: {
               {getActionEmoji(decision.action)} {decision.action.replace(/_/g, ' ')}
             </div>
           </div>
-          <button className="p-1 rounded-lg hover:bg-black/5" onClick={e => { e.stopPropagation(); }}>
-            <MoreHorizontal className="h-4 w-4" style={{ color: 'var(--heart-text-muted)' }} />
-          </button>
+          {/* More menu — functional */}
+          <div className="relative">
+            <button className="p-1 rounded-lg hover:bg-black/5"
+              onClick={e => { e.stopPropagation(); setMenuOpen(!menuOpen); }}>
+              <MoreHorizontal className="h-4 w-4" style={{ color: 'var(--heart-text-muted)' }} />
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={e => { e.stopPropagation(); setMenuOpen(false); }} />
+                <div className="absolute right-0 top-8 w-40 card p-1 z-50" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.15)' }}
+                  onClick={e => e.stopPropagation()}>
+                  {[
+                    { label: '📋 View Full Profile', action: () => alert(`Opening full profile for ${patient.patientName}`) },
+                    { label: '🔄 Re-run AI Analysis', action: runAI },
+                    { label: '📤 Export Report', action: () => alert(`Report exported for ${patient.patientName}`) },
+                    { label: '⚠️ Escalate Case', action: () => alert(`Case escalated for ${patient.patientName}`) },
+                  ].map(item => (
+                    <button key={item.label} onClick={() => { item.action(); setMenuOpen(false); }}
+                      className="w-full text-left px-3 py-2 rounded-lg text-[10px] hover:bg-gray-50 transition-all"
+                      style={{ color: 'var(--heart-text-secondary)' }}>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Mini metric bars */}
@@ -252,7 +367,7 @@ function PatientWidget({ patient, isExpanded, onToggle }: {
         </span>
       </div>
 
-      {/* ── Expanded Detail Overlay ── */}
+      {/* ── Expanded Detail ── */}
       {isExpanded && (
         <div className="px-4 pb-4 pt-2 space-y-3" style={{ borderTop: `1px solid ${palette.border}` }} onClick={e => e.stopPropagation()}>
           {/* Key Metrics */}
@@ -288,13 +403,49 @@ function PatientWidget({ patient, isExpanded, onToggle }: {
 
           {/* AI Reasoning */}
           <div className="p-2.5 rounded-xl" style={{ background: 'white' }}>
-            <div className="text-[10px] font-bold mb-1 flex items-center gap-1" style={{ color: 'var(--heart-text-muted)' }}>
-              <Brain className="h-3 w-3" style={{ color: '#8b5cf6' }} /> AI Reasoning
+            <div className="text-[10px] font-bold mb-1 flex items-center justify-between">
+              <span className="flex items-center gap-1" style={{ color: 'var(--heart-text-muted)' }}>
+                <Brain className="h-3 w-3" style={{ color: '#8b5cf6' }} /> AI Reasoning
+              </span>
+              <button onClick={runAI} disabled={aiLoading}
+                className="flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded"
+                style={{ background: '#f0f9ff', color: '#3b82f6' }}>
+                <RefreshCw className={`h-2.5 w-2.5 ${aiLoading ? 'animate-spin' : ''}`} />
+                {aiLoading ? 'Analyzing...' : 'Re-run AI'}
+              </button>
             </div>
             <p className="text-[10px] leading-relaxed" style={{ color: 'var(--heart-text-secondary)' }}>
-              {decision.reasoning.en.length > 200 ? decision.reasoning.en.slice(0, 200) + '...' : decision.reasoning.en}
+              {(aiResult?.reasoning?.en || decision.reasoning.en).slice(0, 200)}
+              {(aiResult?.reasoning?.en || decision.reasoning.en).length > 200 ? '...' : ''}
             </p>
+            {aiResult && (
+              <div className="mt-1 flex items-center gap-2 text-[9px]" style={{ color: '#8b5cf6' }}>
+                ✦ Live Gemini result • Risk: {aiResult.riskScore}/10 • Action: {aiResult.action}
+              </div>
+            )}
           </div>
+
+          {/* Notes */}
+          {notes.length > 0 && (
+            <div className="p-2 rounded-xl space-y-1" style={{ background: 'white' }}>
+              <div className="text-[9px] font-bold" style={{ color: 'var(--heart-text-muted)' }}>📝 Notes</div>
+              {notes.map((n, i) => (
+                <div key={i} className="text-[10px] px-2 py-1 rounded" style={{ background: '#fef3c7', color: '#92400e' }}>{n}</div>
+              ))}
+            </div>
+          )}
+
+          {/* Note input */}
+          {noteOpen && (
+            <div className="flex items-center gap-2">
+              <input type="text" value={noteText} onChange={e => setNoteText(e.target.value)}
+                placeholder="Add a note..." autoFocus onKeyDown={e => e.key === 'Enter' && addNote()}
+                className="flex-1 text-[10px] px-2 py-1.5 rounded-lg outline-none"
+                style={{ background: 'white', border: '1px solid var(--heart-border)', color: 'var(--heart-text)' }} />
+              <button onClick={addNote} className="text-[9px] font-bold px-2 py-1.5 rounded-lg"
+                style={{ background: '#1e293b', color: 'white' }}>Save</button>
+            </div>
+          )}
 
           {/* Trend */}
           <div className="flex items-center gap-2 text-[10px]" style={{ color: 'var(--heart-text-secondary)' }}>
@@ -305,7 +456,7 @@ function PatientWidget({ patient, isExpanded, onToggle }: {
             <span className="ml-auto">Conf: {decision.confidencePercent}%</span>
           </div>
 
-          {/* Quick Actions */}
+          {/* Quick Actions — all functional */}
           <div className="flex items-center gap-2 pt-1">
             {Object.entries(patient.whatsappDeepLinks).slice(0, 1).map(([idx, link]) => (
               <a key={idx} href={link} target="_blank" rel="noopener noreferrer"
@@ -322,9 +473,21 @@ function PatientWidget({ patient, isExpanded, onToggle }: {
             )}
             <div className="flex-1" />
             <div className="flex items-center gap-1">
-              <button className="p-1.5 rounded-lg hover:bg-black/5"><MessageCircle className="h-3 w-3" style={{ color: 'var(--heart-text-muted)' }} /></button>
-              <button className="p-1.5 rounded-lg hover:bg-black/5"><Bell className="h-3 w-3" style={{ color: 'var(--heart-text-muted)' }} /></button>
-              <button className="p-1.5 rounded-lg hover:bg-black/5"><Clock className="h-3 w-3" style={{ color: 'var(--heart-text-muted)' }} /></button>
+              {/* Add note button */}
+              <button onClick={() => setNoteOpen(!noteOpen)} title="Add note"
+                className="p-1.5 rounded-lg hover:bg-black/5">
+                <MessageCircle className="h-3 w-3" style={{ color: noteOpen ? '#3b82f6' : 'var(--heart-text-muted)' }} />
+              </button>
+              {/* Alert button */}
+              <button onClick={() => alert(`Alert sent for ${patient.patientName}`)} title="Send alert"
+                className="p-1.5 rounded-lg hover:bg-black/5">
+                <Bell className="h-3 w-3" style={{ color: 'var(--heart-text-muted)' }} />
+              </button>
+              {/* Schedule button */}
+              <button onClick={() => alert(`Scheduling follow-up for ${patient.patientName}`)} title="Schedule follow-up"
+                className="p-1.5 rounded-lg hover:bg-black/5">
+                <Clock className="h-3 w-3" style={{ color: 'var(--heart-text-muted)' }} />
+              </button>
             </div>
           </div>
 

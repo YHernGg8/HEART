@@ -1,10 +1,11 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { Heart, Radio, Truck, Hospital, User } from 'lucide-react';
+import { Heart, Radio, Truck, Hospital, User, Stethoscope } from 'lucide-react';
 import ChatWidget from './ChatWidget';
 
 const roles = [
   { path: '/user', label: 'Patient / Family', icon: User, accent: '#10b981' },
   { path: '/operator', label: 'Operator', icon: Radio, accent: '#3b82f6' },
+  { path: '/doctor', label: 'Doctor', icon: Stethoscope, accent: '#ec4899' },
   { path: '/field', label: 'Field Unit', icon: Truck, accent: '#f59e0b' },
   { path: '/hospital', label: 'Hospital', icon: Hospital, accent: '#8b5cf6' },
 ];

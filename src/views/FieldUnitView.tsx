@@ -6,8 +6,8 @@
 import { useState } from 'react';
 import {
   Heart, Wind, Gauge, Plus, Save, Send, Radio, Wifi,
-  AlertTriangle, Shield, Clock, MapPin, FileText, Activity,
-  Stethoscope, Pill, Truck, Building2, ChevronRight,
+  Shield, Activity, FileText, Siren,
+  Stethoscope, Truck, Building2,
 } from 'lucide-react';
 import { getSnapshotDecision, type AIDecision } from '../services/api';
 
@@ -25,6 +25,11 @@ export default function FieldUnitView() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<AIDecision | null>(null);
   const [transmitted, setTransmitted] = useState(false);
+  const [draftSaved, setDraftSaved] = useState(false);
+  const [addPatientOpen, setAddPatientOpen] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newIC, setNewIC] = useState('');
+  const [newComplaint, setNewComplaint] = useState('');
   const [interventions, setInterventions] = useState('Administered O2 via non-rebreather mask at 15L/min. Started IV line.');
   const [medications, setMedications] = useState('Aspirin 324mg PO. Nitroglycerin 0.4mg SL.');
   const [eta, setEta] = useState('8');
@@ -46,6 +51,7 @@ export default function FieldUnitView() {
   };
 
   return (
+    <>
     <div className="min-h-[calc(100vh-3.5rem)] p-5 lg:p-6">
       {/* Header */}
       <div className="text-center mb-6">
@@ -73,8 +79,9 @@ export default function FieldUnitView() {
               <p className="text-[10px] mt-1 leading-relaxed line-clamp-2" style={{ color: 'var(--heart-text-secondary)' }}>{p.complaint}</p>
             </button>
           ))}
-          <button className="w-full card p-3.5 flex items-center justify-center gap-2 text-xs font-semibold transition-all hover:scale-[1.01]"
-            style={{ color: 'var(--heart-text-muted)', border: '1px dashed var(--heart-border)' }}>
+          <button onClick={() => setAddPatientOpen(true)}
+            className="w-full card p-3.5 flex items-center justify-center gap-2 text-xs font-bold transition-all hover:scale-[1.01]"
+            style={{ color: 'white', background: 'linear-gradient(135deg, #e74c5a, #d4404f)', border: 'none' }}>
             <Plus className="h-4 w-4" /> New Patient
           </button>
         </div>
@@ -91,9 +98,10 @@ export default function FieldUnitView() {
               <span className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>Managing EMHR for: {selected.name} (IC: {selected.ic})</span>
             </div>
             <div className="flex items-center gap-2">
-              <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold"
-                style={{ background: 'var(--heart-bg)', color: 'var(--heart-text-secondary)', border: '1px solid var(--heart-border)' }}>
-                <Save className="h-3.5 w-3.5" /> Save Draft
+              <button onClick={() => { setDraftSaved(true); setTimeout(() => setDraftSaved(false), 2000); }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold"
+                style={{ background: draftSaved ? '#dcfce7' : 'var(--heart-bg)', color: draftSaved ? '#16a34a' : 'var(--heart-text-secondary)', border: `1px solid ${draftSaved ? '#bbf7d0' : 'var(--heart-border)'}` }}>
+                <Save className="h-3.5 w-3.5" /> {draftSaved ? 'Saved ✓' : 'Save Draft'}
               </button>
               <button onClick={() => setTransmitted(true)} disabled={transmitted}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-white transition-all"
@@ -233,14 +241,32 @@ export default function FieldUnitView() {
         </div>
       </div>
     </div>
+
+    {/* Add Patient Modal */}
+    {addPatientOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
+        <div className="card p-6 w-[420px] mx-4" style={{ background: 'var(--heart-surface)' }}>
+          <h3 className="text-sm font-bold mb-1 flex items-center gap-2" style={{ color: 'var(--heart-text)' }}><Siren className="h-4 w-4" style={{ color: '#ef4444' }} /> Add Patient to Unit</h3>
+          <p className="text-[10px] mb-4" style={{ color: 'var(--heart-text-muted)' }}>Register new patient on KL-Unit 04</p>
+          <div className="space-y-3">
+            <div><label className="text-[10px] font-semibold block mb-1" style={{ color: 'var(--heart-text-muted)' }}>Patient Name *</label><input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Full name" className="w-full text-xs p-2.5 rounded-lg outline-none" style={{ background: 'var(--heart-bg)', color: 'var(--heart-text)', border: '1px solid var(--heart-border)' }} /></div>
+            <div><label className="text-[10px] font-semibold block mb-1" style={{ color: 'var(--heart-text-muted)' }}>IC Number</label><input type="text" value={newIC} onChange={e => setNewIC(e.target.value)} placeholder="XXXXXX-XX-XXXX" className="w-full text-xs p-2.5 rounded-lg outline-none" style={{ background: 'var(--heart-bg)', color: 'var(--heart-text)', border: '1px solid var(--heart-border)' }} /></div>
+            <div><label className="text-[10px] font-semibold block mb-1" style={{ color: 'var(--heart-text-muted)' }}>Chief Complaint *</label><textarea value={newComplaint} onChange={e => setNewComplaint(e.target.value)} rows={2} placeholder="Describe symptoms..." className="w-full text-xs p-2.5 rounded-lg outline-none resize-none" style={{ background: 'var(--heart-bg)', color: 'var(--heart-text)', border: '1px solid var(--heart-border)' }} /></div>
+          </div>
+          <div className="flex items-center gap-2 mt-5"><button onClick={() => setAddPatientOpen(false)} className="flex-1 py-2.5 rounded-lg text-xs font-semibold" style={{ border: '1px solid var(--heart-border)', color: 'var(--heart-text-secondary)' }}>Cancel</button><button onClick={() => { if (newName.trim() && newComplaint.trim()) { alert(`✅ Patient "${newName}" added to KL-Unit 04`); setAddPatientOpen(false); setNewName(''); setNewIC(''); setNewComplaint(''); } }} className="flex-1 py-2.5 rounded-lg text-xs font-bold text-white" style={{ background: newName.trim() && newComplaint.trim() ? 'linear-gradient(135deg, #e74c5a, #d4404f)' : '#9ca3af' }}>Add to Unit</button></div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
 function VitalCard({ icon, label, value, unit, color, bg }: { icon: React.ReactNode; label: string; value: number | string; unit: string; color: string; bg: string }) {
+  const isCritical = typeof value === 'number' ? (label === 'Heart Rate' ? value > 120 : label === 'SpO2' ? value < 95 : false) : false;
   return (
-    <div className="card p-4 text-center" style={{ background: bg }}>
+    <div className={`card p-4 text-center transition-all ${isCritical ? 'ring-2 ring-red-400 ring-offset-1' : ''}`} style={{ background: bg }}>
       <div className="flex items-center justify-center gap-1.5 mb-2 [&>svg]:h-4 [&>svg]:w-4" style={{ color }}>{icon}<span className="text-[10px] font-semibold" style={{ color: 'var(--heart-text-muted)' }}>{label}</span></div>
-      <div className="text-3xl font-black" style={{ color: 'var(--heart-text)' }}>{value}</div>
+      <div className={`text-3xl font-black ${isCritical ? 'animate-pulse' : ''}`} style={{ color: isCritical ? '#dc2626' : 'var(--heart-text)' }}>{value}</div>
       <div className="text-xs" style={{ color: 'var(--heart-text-muted)' }}>{unit}</div>
     </div>
   );

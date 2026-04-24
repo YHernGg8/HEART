@@ -4,6 +4,7 @@ import UserView from './views/UserView';
 import OperatorView from './views/OperatorView';
 import FieldUnitView from './views/FieldUnitView';
 import HospitalView from './views/HospitalView';
+import DoctorView from './views/DoctorView';
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
           <Route path="/" element={<Navigate to="/operator" replace />} />
           <Route path="/user" element={<UserView />} />
           <Route path="/operator" element={<OperatorView />} />
+          <Route path="/doctor" element={<DoctorView />} />
           <Route path="/field" element={<FieldUnitView />} />
           <Route path="/hospital" element={<HospitalView />} />
         </Route>
@@ -20,3 +22,4 @@ export default function App() {
     </BrowserRouter>
   );
 }
+
