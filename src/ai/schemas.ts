@@ -57,6 +57,12 @@ export const EnhancedOutputSchema = z.object({
   reasoning: MultilingualTextSchema,
   actionPlan: MultilingualTextSchema.optional(),
   estimatedOutcome: MultilingualTextSchema.optional(),
+  roleInsights: z.object({
+    family: MultilingualTextSchema,
+    fieldUnit: z.string(),
+    doctor: z.string(),
+    operator: z.string(),
+  }).optional(),
   action: CareActionSchema,
   decisionId: z.string().optional(),
   confidencePercent: z.number().min(0).max(100).optional(),

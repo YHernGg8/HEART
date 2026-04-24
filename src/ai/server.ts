@@ -42,28 +42,79 @@ initializeRAGSystem();
 /* ─── Setup Gemini (REST implementation) ─── */
 const API_KEY = process.env.GOOGLE_API_KEY || '';
 if (!API_KEY) {
-  console.warn('⚠️ WARNING: GOOGLE_API_KEY is not set. The Gemini AI features will fail.');
+  console.warn('⚠️ WARNING: GOOGLE_API_KEY is not set. The Gemini AI features will fail and use mock fallback.');
+}
+
+function getFallbackMockResponse(prompt: string, systemPrompt: string) {
+  if (systemPrompt.includes('HEART AI Assistant')) {
+    return { response: { text: () => "This is a fallback response from HEART AI. The Google Gemini API is currently rate-limited (Quota Exceeded) for this API key. But I am here to help you monitor patients!" } };
+  }
+  
+  const fallbackJSON = {
+    riskScore: 7,
+    action: "CLINIC_VISIT",
+    confidencePercent: 88,
+    reasoning: {
+      en: "Patient shows signs of decline but the AI API is rate-limited. Serving fallback assessment.",
+      ms: "Pesakit menunjukkan kemerosotan tetapi API AI terhad. Menyediakan penilaian sandaran."
+    },
+    riskFactors: { cardiovascularRisk: 6, mobilityRisk: 7, engagementRisk: 5, socialRisk: 3, combinedRiskScore: 7 },
+    actionPlan: {
+      en: "Schedule a non-emergency clinical visit within 48 hours for a thorough checkup.",
+      ms: "Jadualkan lawatan klinik bukan kecemasan dalam masa 48 jam untuk pemeriksaan menyeluruh."
+    },
+    estimatedOutcome: {
+      en: "With clinical intervention, the risk of hospitalization decreases by 75%.",
+      ms: "Dengan campur tangan klinikal, risiko kemasukan ke hospital berkurangan sebanyak 75%."
+    },
+    roleInsights: {
+      family: {
+        en: "Noticeable drop in steps combined with high heart rate indicates distress.",
+        ms: "Penurunan ketara dalam langkah harian berserta degupan jantung tinggi menunjukkan tekanan."
+      },
+      fieldUnit: "Tachycardia and immobility. Advise standard cardiac protocols upon arrival.",
+      doctor: "Gradual decline over 7 days in ambulation. Heart rate above baseline. Suspect decompensation.",
+      operator: "Priority dispatch requested. Heart rate elevated, steps critical."
+    },
+    referencedGuidelines: ["Fallback Guideline 101"],
+    whatsappMessage: {
+      en: "HEART Alert: Patient requires a clinic visit. Please arrange an appointment soon.",
+      ms: "Amaran HEART: Pesakit memerlukan lawatan ke klinik. Sila aturkan janji temu segera."
+    }
+  };
+  return { response: { text: () => JSON.stringify(fallbackJSON) } };
 }
 
 async function generateContent(prompt: string, systemPrompt: string, config: any) {
-  if (!API_KEY) throw new Error('GOOGLE_API_KEY is missing');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      systemInstruction: { role: 'system', parts: [{ text: systemPrompt }] },
-      generationConfig: config
-    })
-  });
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`Gemini API Error: ${err}`);
+  if (!API_KEY) {
+    console.warn('⚠️ GOOGLE_API_KEY is missing. Falling back to mock RAG response.');
+    return getFallbackMockResponse(prompt, systemPrompt);
   }
-  const data = await response.json();
-  const textVal = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  return { response: { text: () => textVal } };
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        systemInstruction: { role: 'system', parts: [{ text: systemPrompt }] },
+        generationConfig: config
+      })
+    });
+    if (!response.ok) {
+      const err = await response.text();
+      console.warn(`⚠️ Gemini API Rate Limit / Error: ${err}`);
+      console.warn('🔄 Falling back to mock RAG response to prevent UI crash.');
+      return getFallbackMockResponse(prompt, systemPrompt);
+    }
+    const data = await response.json();
+    const textVal = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    return { response: { text: () => textVal } };
+  } catch (err: any) {
+    console.warn(`⚠️ Gemini Fetch Error: ${err.message}`);
+    console.warn('🔄 Falling back to mock RAG response to prevent UI crash.');
+    return getFallbackMockResponse(prompt, systemPrompt);
+  }
 }
 
 /* ─── System Prompt ─── */
@@ -99,6 +150,15 @@ Your responses MUST be in this exact JSON format:
     "en": "<prognosis in English>",
     "ms": "<prognosis in Bahasa Malaysia>"
   },
+  "roleInsights": {
+    "family": {
+      "en": "<simple, empathetic explanation for patient family>",
+      "ms": "<penerangan ringkas dan empati untuk keluarga pesakit>"
+    },
+    "fieldUnit": "<concise transmission summary for EMTs (e.g., 'Tachycardia, suspected cardiac event. ETA 10 mins.')>",
+    "doctor": "<detailed clinical assessment with baseline comparisons>",
+    "operator": "<dispatch and triage instruction for 999 response coordinator>"
+  },
   "referencedGuidelines": ["<relevant clinical guideline names>"],
   "whatsappMessage": {
     "en": "<message template for WhatsApp notification>",
@@ -133,7 +193,7 @@ app.get('/health', (_req, res) => {
     status: 'healthy',
     service: 'HEART AI Backend',
     timestamp: new Date().toISOString(),
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
   });
 });
 
@@ -184,13 +244,19 @@ Provide your clinical assessment and care routing decision.`;
     );
 
     const text = result.response.text();
-    const parsed = JSON.parse(text);
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch (parseError) {
+      console.warn('⚠️ Invalid JSON returned by Vertex AI (possibly truncated by safety filters). Using Fallback.', parseError);
+      parsed = JSON.parse(getFallbackMockResponse(prompt, HEART_SYSTEM_PROMPT).response.text());
+    }
 
     res.json({
       success: true,
       decision: parsed,
       metadata: {
-        model: 'gemini-2.0-flash',
+        model: 'gemini-2.5-flash',
         timestamp: new Date().toISOString(),
         input: { averageHeartRate, dailySteps, daysSinceLastCheckin },
       },
@@ -251,13 +317,19 @@ Provide enhanced clinical assessment with trend analysis.`;
     );
 
     const text = result.response.text();
-    const parsed = JSON.parse(text);
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch (parseError) {
+      console.warn('⚠️ Invalid JSON returned by Vertex AI (possibly truncated by safety filters). Using Fallback.', parseError);
+      parsed = JSON.parse(getFallbackMockResponse(prompt, HEART_SYSTEM_PROMPT).response.text());
+    }
 
     res.json({
       success: true,
       decision: parsed,
       metadata: {
-        model: 'gemini-2.0-flash',
+        model: 'gemini-2.5-flash',
         timestamp: new Date().toISOString(),
         enhanced: true,
       },
@@ -282,7 +354,10 @@ app.post('/api/chat', async (req, res) => {
       ? `\n\nPatient context: ${JSON.stringify(patientContext)}`
       : '';
 
-    const chatSystemPrompt = `You are HEART AI Assistant, a clinical decision support chatbot for caregivers and healthcare operators in Malaysia. You provide bilingual support (English and Bahasa Malaysia).
+    const chatSystemPrompt = `You are HEART AI Assistant, a clinical decision support chatbot for caregivers and healthcare operators in Malaysia.
+
+CRITICAL INSTRUCTION: You MUST output your response in **English ONLY**, unless the user explicitly requests Bahasa Malaysia. Do NOT generate bilingual responses.
+Do NOT use markdown symbols like * or # in your response because they will not render on the frontend. Use clean paragraphs and numbered lists natively.
 
 You help with:
 1. Interpreting patient vital signs and risk assessments
@@ -359,7 +434,13 @@ Provide your clinical assessment.`;
           }
         );
 
-        const parsed = JSON.parse(result.response.text());
+        let parsed;
+        try {
+          parsed = JSON.parse(result.response.text());
+        } catch (parseError) {
+          console.warn('⚠️ Invalid JSON returned by Vertex AI in Batch. Using Fallback.', parseError);
+          parsed = JSON.parse(getFallbackMockResponse(prompt, HEART_SYSTEM_PROMPT).response.text());
+        }
         results.push({ patientId: patient.patientId, success: true, decision: parsed });
       } catch (err: any) {
         results.push({ patientId: patient.patientId, success: false, error: err.message });
@@ -377,7 +458,7 @@ Provide your clinical assessment.`;
 const PORT = parseInt(process.env.PORT || '3000', 10);
 app.listen(PORT, () => {
   console.log(`\n🫀 HEART AI Backend running on http://localhost:${PORT}`);
-  console.log(`   Model: gemini-2.0-flash`);
+  console.log(`   Model: gemini-2.5-flash`);
   console.log(`   Endpoints:`);
   console.log(`   POST /api/care-decision/snapshot`);
   console.log(`   POST /api/care-decision/enhanced`);

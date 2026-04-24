@@ -100,7 +100,7 @@ export default function ChatWidget() {
                   style={{ background: msg.role === 'user' ? '#3b82f6' : '#e74c5a' }}>
                   {msg.role === 'user' ? <User className="h-3.5 w-3.5" /> : <Bot className="h-3.5 w-3.5" />}
                 </div>
-                <div className={`max-w-[75%] px-3 py-2 rounded-xl text-xs leading-relaxed ${
+                <div className={`max-w-[75%] px-3 py-2 rounded-xl text-xs leading-relaxed whitespace-pre-wrap ${
                   msg.role === 'user' ? 'rounded-tr-sm' : 'rounded-tl-sm'
                 }`}
                   style={{
