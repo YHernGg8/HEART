@@ -7,7 +7,8 @@
 import { useState } from 'react';
 import {
   PhoneCall, Building2, Users, MapPin,
-  CheckCircle, Truck, ChevronDown, X, Building
+  CheckCircle, Truck, ChevronDown, X, Building,
+  Search, Radio, Wifi
 } from 'lucide-react';
 import { getSnapshotDecision, type AIDecision } from '../services/api';
 

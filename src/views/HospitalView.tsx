@@ -11,6 +11,7 @@ import {
   Settings, ShieldCheck, HelpCircle, Search,
   BedDouble, Plus, ArrowUpRight, Siren, Clock, CheckCircle,
   XCircle, UserCheck, Truck, AlertTriangle, ArrowRight, Shield,
+  Trash2, Edit3,
 } from 'lucide-react';
 import {
   PieChart, Pie, Cell, ResponsiveContainer,

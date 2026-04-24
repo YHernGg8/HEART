@@ -6,7 +6,6 @@
 
 import express from 'express';
 import cors from 'cors';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -40,15 +39,32 @@ loadEnv();
 /* ─── Initialize RAG ─── */
 initializeRAGSystem();
 
-/* ─── Setup Gemini ─── */
+/* ─── Setup Gemini (REST implementation) ─── */
 const API_KEY = process.env.GOOGLE_API_KEY || '';
 if (!API_KEY) {
-  console.error('❌ GOOGLE_API_KEY not found in .env');
-  process.exit(1);
+  console.warn('⚠️ WARNING: GOOGLE_API_KEY is not set. The Gemini AI features will fail.');
 }
 
-const genAI = new GoogleGenerativeAI(API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+async function generateContent(prompt: string, systemPrompt: string, config: any) {
+  if (!API_KEY) throw new Error('GOOGLE_API_KEY is missing');
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      systemInstruction: { role: 'system', parts: [{ text: systemPrompt }] },
+      generationConfig: config
+    })
+  });
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Gemini API Error: ${err}`);
+  }
+  const data = await response.json();
+  const textVal = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  return { response: { text: () => textVal } };
+}
 
 /* ─── System Prompt ─── */
 const HEART_SYSTEM_PROMPT = `You are HEART (Homecare & Emergency AI Routing Technology), an autonomous care decision engine for elderly patients in Malaysia.
@@ -157,15 +173,15 @@ Provide your clinical assessment and care routing decision.`;
     const guidelines = await retrieveRelevantGuidelines(simulatedRisks);
     const ragPrompt = buildRAGEnrichedPrompt(guidelines);
 
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      systemInstruction: { role: 'system', parts: [{ text: ragPrompt + '\n' + HEART_SYSTEM_PROMPT }] },
-      generationConfig: {
+    const result = await generateContent(
+      prompt,
+      ragPrompt + '\n' + HEART_SYSTEM_PROMPT,
+      {
         temperature: 0.3,
         maxOutputTokens: 2048,
         responseMimeType: 'application/json',
-      },
-    });
+      }
+    );
 
     const text = result.response.text();
     const parsed = JSON.parse(text);
@@ -224,15 +240,15 @@ Provide enhanced clinical assessment with trend analysis.`;
     const guidelines = await retrieveRelevantGuidelines(simulatedRisks);
     const ragPrompt = buildRAGEnrichedPrompt(guidelines);
 
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      systemInstruction: { role: 'system', parts: [{ text: ragPrompt + '\n' + HEART_SYSTEM_PROMPT }] },
-      generationConfig: {
+    const result = await generateContent(
+      prompt,
+      ragPrompt + '\n' + HEART_SYSTEM_PROMPT,
+      {
         temperature: 0.3,
         maxOutputTokens: 2048,
         responseMimeType: 'application/json',
-      },
-    });
+      }
+    );
 
     const text = result.response.text();
     const parsed = JSON.parse(text);
@@ -276,14 +292,14 @@ You help with:
 
 Always be professional, empathetic, and evidence-based. If a question involves emergency symptoms, advise calling 999 immediately.${contextPrompt}`;
 
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: message }] }],
-      systemInstruction: { role: 'system', parts: [{ text: chatSystemPrompt }] },
-      generationConfig: {
+    const result = await generateContent(
+      message,
+      chatSystemPrompt,
+      {
         temperature: 0.7,
         maxOutputTokens: 1024,
-      },
-    });
+      }
+    );
 
     const reply = result.response.text();
 
@@ -333,15 +349,15 @@ Medical History: ${patient.medicalHistory || 'None provided'}
 - Days Since Last Check-in: ${patient.checkinDays || patient.daysSinceLastCheckin || 0}
 Provide your clinical assessment.`;
 
-        const result = await model.generateContent({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          systemInstruction: { role: 'system', parts: [{ text: HEART_SYSTEM_PROMPT }] },
-          generationConfig: {
+        const result = await generateContent(
+          prompt,
+          HEART_SYSTEM_PROMPT,
+          {
             temperature: 0.3,
             maxOutputTokens: 2048,
             responseMimeType: 'application/json',
-          },
-        });
+          }
+        );
 
         const parsed = JSON.parse(result.response.text());
         results.push({ patientId: patient.patientId, success: true, decision: parsed });

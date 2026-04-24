@@ -5,32 +5,22 @@
  * over indexed clinical guidelines. Fallback to the mock knowledge base is
  * intentionally handled by rag-system.ts, so setup errors remain visible here.
  */
-
-import { SearchServiceClient } from '@google-cloud/discoveryengine';
+import { GoogleAuth } from 'google-auth-library';
 import { MedicalGuideline, RiskFactors } from './types.js';
 import { KNOWLEDGE_BASE } from './rag-system-mock.js';
 
-let searchClient: SearchServiceClient | null = null;
+let authClient: any = null;
 
-/**
- * Initialize Vertex AI Search client.
- * Credentials are loaded from GOOGLE_APPLICATION_CREDENTIALS locally or the
- * Cloud Run service account in deployment.
- */
 export function initializeVertexSearch() {
     try {
-        const location = process.env.VERTEX_SEARCH_LOCATION || 'global';
-        searchClient = new SearchServiceClient({
-            projectId: process.env.GCP_PROJECT_ID,
-            ...(location !== 'global'
-                ? { apiEndpoint: `${location}-discoveryengine.googleapis.com` }
-                : {}),
+        const auth = new GoogleAuth({
+            scopes: 'https://www.googleapis.com/auth/cloud-platform',
         });
-
-        console.log('Vertex AI Search client initialized');
+        authClient = auth;
+        console.log('✅ Vertex AI Search REST Auth initialized');
     } catch (error) {
-        searchClient = null;
-        console.warn('Vertex AI Search initialization failed:', error);
+        authClient = null;
+        console.warn('⚠️ Vertex AI Search Auth init failed:', error);
     }
 }
 
@@ -41,96 +31,55 @@ export async function retrieveGuidelinesFromVertex(
     riskProfile: RiskFactors,
     queryTerms?: string
 ): Promise<MedicalGuideline[]> {
-    if (!searchClient) {
-        throw new Error('Vertex AI Search client is not initialized');
-    }
+    if (!authClient) throw new Error('Vertex Auth client not initialized');
+    const client = await authClient.getClient();
+    const tokenRes = await client.getAccessToken();
+    const accessToken = tokenRes.token;
 
     const query = buildSearchQuery(riskProfile, queryTerms);
     const servingConfigs = buildServingConfigCandidates();
 
     if (servingConfigs.length === 0) {
-        throw new Error(
-            'Vertex AI Search is enabled but neither VERTEX_SEARCH_ENGINE_ID nor VERTEX_SEARCH_DATASTORE_ID is configured'
-        );
+        throw new Error('VERTEX_SEARCH_ENGINE_ID not configured');
     }
 
     const errors: string[] = [];
 
     for (const servingConfig of servingConfigs) {
         try {
-            console.log('Searching Vertex AI Search:', { servingConfig, query });
+            console.log('Searching Vertex REST API:', { servingConfig, query });
+            const url = `https://discoveryengine.googleapis.com/v1alpha/${servingConfig}:search`;
 
-            const request = {
-                servingConfig,
-                query,
-                pageSize: 5,
-                contentSearchSpec: {
-                    snippetSpec: {
-                        returnSnippet: true,
-                        maxSnippetCount: 3,
-                    },
-                    extractiveContentSpec: {
-                        maxExtractiveAnswerCount: 3,
-                        maxExtractiveSegmentCount: 2,
-                    },
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
                 },
-            };
-            const [response, _nextRequest, rawResponse] = await searchClient.search(
-                request as any,
-                { autoPaginate: false } as any
-            );
+                body: JSON.stringify({
+                    query,
+                    pageSize: 5,
+                    contentSearchSpec: {
+                        snippetSpec: { returnSnippet: true, maxSnippetCount: 3 },
+                        extractiveContentSpec: { maxExtractiveAnswerCount: 3, maxExtractiveSegmentCount: 2 }
+                    }
+                })
+            });
 
-            // Discovery Engine client can return either:
-            // 1) auto-paginated resources array (SearchResult[])
-            // 2) SearchResponse with `.results`
-            // 3) rawResponse (when autoPaginate=false)
-            const normalizedResults = Array.isArray((rawResponse as any)?.results)
-                ? (rawResponse as any).results
-                : Array.isArray((response as any)?.results)
-                    ? (response as any).results
-                    : Array.isArray(response)
-                        ? response
-                        : [];
-
-            const results = Array.isArray(normalizedResults) ? normalizedResults : [];
-            console.log(`Vertex AI Search raw result count: ${Array.isArray(results) ? results.length : 0}`);
-            if (Array.isArray(results) && results.length > 0) {
-                console.log(
-                    'Vertex AI Search raw result preview:',
-                    results.slice(0, 3).map((result: any) => {
-                        const previewDerived = normalizeStruct(result.document?.derivedStructData);
-                        const previewStruct = normalizeStruct(result.document?.structData);
-                        const previewContent = normalizeStruct(result.document?.content);
-                        const previewSnippets = readArray(previewDerived.snippets);
-                        const previewExtractiveAnswers = readArray(
-                            previewDerived.extractive_answers || previewDerived.extractiveAnswers
-                        );
-
-                        return {
-                            id: result.document?.id,
-                            name: result.document?.name,
-                            uri: readString(previewContent.uri || previewDerived.link),
-                            structTitle: readString(previewStruct.title),
-                            derivedTitle: readString(previewDerived.title),
-                            snippet: readString(previewSnippets[0]?.snippet || previewSnippets[0]).slice(0, 160),
-                            extractiveAnswer: readString(
-                                previewExtractiveAnswers[0]?.content || previewExtractiveAnswers[0]
-                            ).slice(0, 160),
-                        };
-                    })
-                );
+            if (!res.ok) {
+                const errText = await res.text();
+                throw new Error(`REST Error: ${res.status} - ${errText}`);
             }
 
-            const guidelines = (Array.isArray(results) ? results : [])
+            const data = await res.json();
+            const results = data.results || [];
+            
+            const guidelines = results
                 .slice(0, 5)
                 .map((result: any) => parseVertexSearchResult(result))
                 .filter((guideline: any): guideline is MedicalGuideline => guideline !== null);
 
-            console.log(`Retrieved ${guidelines.length} guidelines from Vertex AI Search`);
-
-            if (guidelines.length > 0) {
-                return guidelines;
-            }
+            if (guidelines.length > 0) return guidelines;
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
             errors.push(`${servingConfig}: ${errorMsg}`);
