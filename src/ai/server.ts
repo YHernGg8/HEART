@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initializeRAGSystem, retrieveRelevantGuidelines, buildRAGEnrichedPrompt } from './rag-system.js';
+import { VertexAI } from '@google-cloud/vertexai';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,10 +40,20 @@ loadEnv();
 /* ─── Initialize RAG ─── */
 initializeRAGSystem();
 
-/* ─── Setup Gemini (REST implementation) ─── */
-const API_KEY = process.env.GOOGLE_API_KEY || '';
-if (!API_KEY) {
-  console.warn('⚠️ WARNING: GOOGLE_API_KEY is not set. The Gemini AI features will fail and use mock fallback.');
+/* ─── Setup Vertex AI (SDK implementation) ─── */
+const chatProjectId = process.env.GCP_PROJECT_ID || '';
+const chatLocation = process.env.GCP_REGION || 'asia-southeast1';
+const chatModel = process.env.CHAT_MODEL || 'gemini-2.5-flash';
+
+let vertexAI: any = null;
+if (chatProjectId) {
+  try {
+    vertexAI = new VertexAI({ project: chatProjectId, location: chatLocation });
+  } catch (err) {
+    console.warn('⚠️ Failed to init VertexAI', err);
+  }
+} else {
+  console.warn('⚠️ WARNING: GCP_PROJECT_ID is not set. Vertex AI features will fail and use mock fallback.');
 }
 
 function getFallbackMockResponse(prompt: string, systemPrompt: string) {
@@ -86,32 +97,27 @@ function getFallbackMockResponse(prompt: string, systemPrompt: string) {
 }
 
 async function generateContent(prompt: string, systemPrompt: string, config: any) {
-  if (!API_KEY) {
-    console.warn('⚠️ GOOGLE_API_KEY is missing. Falling back to mock RAG response.');
+  if (!vertexAI) {
+    console.warn('⚠️ Vertex AI is not initialized. Falling back to mock RAG response.');
     return getFallbackMockResponse(prompt, systemPrompt);
   }
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        systemInstruction: { role: 'system', parts: [{ text: systemPrompt }] },
-        generationConfig: config
-      })
+    const generativeModel = vertexAI.getGenerativeModel({
+      model: chatModel,
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      generationConfig: config
     });
-    if (!response.ok) {
-      const err = await response.text();
-      console.warn(`⚠️ Gemini API Rate Limit / Error: ${err}`);
-      console.warn('🔄 Falling back to mock RAG response to prevent UI crash.');
-      return getFallbackMockResponse(prompt, systemPrompt);
-    }
-    const data = await response.json();
+    
+    const request = {
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    };
+    
+    const responseStream = await generativeModel.generateContent(request);
+    const data = await responseStream.response;
     const textVal = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     return { response: { text: () => textVal } };
   } catch (err: any) {
-    console.warn(`⚠️ Gemini Fetch Error: ${err.message}`);
+    console.warn(`⚠️ Vertex AI Fetch Error: ${err.message}`);
     console.warn('🔄 Falling back to mock RAG response to prevent UI crash.');
     return getFallbackMockResponse(prompt, systemPrompt);
   }
