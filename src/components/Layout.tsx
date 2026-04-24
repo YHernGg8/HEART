@@ -1,34 +1,46 @@
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { Heart, Radio, Truck, Hospital, User, Stethoscope } from 'lucide-react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Heart, LogOut } from 'lucide-react';
+import { User, Radio, Stethoscope, Truck, Hospital } from 'lucide-react';
 import ChatWidget from './ChatWidget';
+import { signOutAll } from './LoginGate';
 
-const roles = [
-  { path: '/user', label: 'Patient / Family', icon: User, accent: '#10b981' },
-  { path: '/operator', label: 'Operator', icon: Radio, accent: '#3b82f6' },
-  { path: '/doctor', label: 'Doctor', icon: Stethoscope, accent: '#ec4899' },
-  { path: '/field', label: 'Field Unit', icon: Truck, accent: '#f59e0b' },
-  { path: '/hospital', label: 'Hospital', icon: Hospital, accent: '#8b5cf6' },
-];
+const roleMap: Record<string, { label: string; icon: typeof User; accent: string }> = {
+  '/user':     { label: 'Patient / Family', icon: User, accent: '#10b981' },
+  '/operator': { label: 'Operator (999)',   icon: Radio, accent: '#3b82f6' },
+  '/doctor':   { label: 'Doctor',           icon: Stethoscope, accent: '#ec4899' },
+  '/field':    { label: 'Field Unit',       icon: Truck, accent: '#f59e0b' },
+  '/hospital': { label: 'Hospital Admin',   icon: Hospital, accent: '#8b5cf6' },
+};
 
 export default function Layout() {
   const location = useLocation();
-  const currentRole = roles.find(r => r.path === location.pathname);
+  const navigate = useNavigate();
+  const currentRole = roleMap[location.pathname];
+
+  const handleSignOut = () => {
+    signOutAll();
+    navigate('/');
+  };
+
+  // Don't show nav on landing page
+  if (location.pathname === '/') return <Outlet />;
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--heart-bg)' }}>
-      {/* Top Navigation — Clean Light */}
+      {/* Top Navigation */}
       <nav
         className="sticky top-0 z-50"
         style={{
-          background: 'var(--heart-surface)',
+          background: 'rgba(255, 255, 255, 0.75)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
           borderBottom: '1px solid var(--heart-border-light)',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
         }}
       >
         <div className="mx-auto max-w-[1600px] px-5">
           <div className="flex h-14 items-center justify-between">
             {/* Brand */}
-            <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/')} className="flex items-center gap-3 transition-opacity hover:opacity-80">
               <div
                 className="flex h-9 w-9 items-center justify-center rounded-xl shadow-sm"
                 style={{ background: 'linear-gradient(135deg, #e74c5a, #d4404f)' }}
@@ -43,46 +55,30 @@ export default function Layout() {
                   Care Decision Engine
                 </span>
               </div>
-            </div>
+            </button>
 
-            {/* Role Tabs */}
-            <div
-              className="flex items-center gap-1 rounded-xl p-1"
-              style={{ background: 'var(--heart-bg)' }}
-            >
-              {roles.map(role => {
-                const Icon = role.icon;
-                const isActive = location.pathname === role.path;
+            {/* Current Role + Status */}
+            <div className="flex items-center gap-4">
+              <div className="hidden md:flex items-center gap-2 text-xs" style={{ color: 'var(--heart-text-muted)' }}>
+                <div className="status-dot status-dot-green" />
+                <span>System Active</span>
+              </div>
+
+              {currentRole && (() => {
+                const Icon = currentRole.icon;
                 return (
-                  <NavLink
-                    key={role.path}
-                    to={role.path}
-                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200"
-                    style={{
-                      background: isActive ? 'var(--heart-surface)' : 'transparent',
-                      color: isActive ? role.accent : 'var(--heart-text-secondary)',
-                      boxShadow: isActive ? 'var(--heart-shadow)' : 'none',
-                    }}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">{role.label}</span>
-                  </NavLink>
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl" style={{ background: `${currentRole.accent}10` }}>
+                    <Icon className="h-3.5 w-3.5" style={{ color: currentRole.accent }} />
+                    <span className="text-xs font-semibold" style={{ color: currentRole.accent }}>{currentRole.label}</span>
+                  </div>
                 );
-              })}
-            </div>
+              })()}
 
-            {/* Status */}
-            <div className="hidden md:flex items-center gap-2 text-xs" style={{ color: 'var(--heart-text-muted)' }}>
-              <div className="status-dot status-dot-green" />
-              <span>System Active</span>
-              {currentRole && (
-                <span
-                  className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                  style={{ background: currentRole.accent + '15', color: currentRole.accent }}
-                >
-                  {currentRole.label}
-                </span>
-              )}
+              <button onClick={handleSignOut}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:bg-red-50"
+                style={{ color: '#ef4444', border: '1px solid #fecaca' }}>
+                <LogOut className="h-3.5 w-3.5" /> Sign Out
+              </button>
             </div>
           </div>
         </div>

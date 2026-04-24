@@ -26,6 +26,27 @@ const roleConfigs: Record<RoleKey, RoleConfig> = {
 
 /* ── Shared auth state across all portals ── */
 const authedRoles = new Set<RoleKey>();
+let _forceUpdate: (() => void) | null = null;
+
+/** Sign out a specific role */
+export function signOut(role: RoleKey) {
+  authedRoles.delete(role);
+}
+
+/** Sign out ALL roles */
+export function signOutAll() {
+  authedRoles.clear();
+}
+
+/** Demo sign in — authenticate all roles */
+export function demoSignIn() {
+  (Object.keys(roleConfigs) as RoleKey[]).forEach(r => authedRoles.add(r));
+}
+
+/** Check if a role is authenticated */
+export function isAuthed(role: RoleKey): boolean {
+  return authedRoles.has(role);
+}
 
 interface LoginGateProps {
   role: RoleKey;
@@ -33,7 +54,7 @@ interface LoginGateProps {
 }
 
 export default function LoginGate({ role, children }: LoginGateProps) {
-  const [isAuthed, setIsAuthed] = useState(authedRoles.has(role));
+  const [authed, setAuthed] = useState(authedRoles.has(role));
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -46,7 +67,7 @@ export default function LoginGate({ role, children }: LoginGateProps) {
     e.preventDefault();
     if (username === config.username && password === config.password) {
       authedRoles.add(role);
-      setIsAuthed(true);
+      setAuthed(true);
       setError('');
     } else {
       setError('Invalid credentials. Please check your username and password.');
@@ -54,12 +75,11 @@ export default function LoginGate({ role, children }: LoginGateProps) {
   };
 
   const handleDemo = () => {
-    // Demo mode: authenticate ALL roles instantly
-    (Object.keys(roleConfigs) as RoleKey[]).forEach(r => authedRoles.add(r));
-    setIsAuthed(true);
+    demoSignIn();
+    setAuthed(true);
   };
 
-  if (isAuthed) return <>{children}</>;
+  if (authed) return <>{children}</>;
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center p-6" style={{ background: 'var(--heart-bg)' }}>
@@ -74,7 +94,7 @@ export default function LoginGate({ role, children }: LoginGateProps) {
         </div>
 
         {/* Login Card */}
-        <div className="card p-6" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.08)' }}>
+        <div className="card-glass p-6" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.08)' }}>
           {/* Role Badge */}
           <div className="flex items-center gap-3 mb-6 p-3 rounded-xl" style={{ background: `${config.accent}10` }}>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${config.accent}20`, color: config.accent }}>
@@ -92,7 +112,7 @@ export default function LoginGate({ role, children }: LoginGateProps) {
               <input type="text" value={username} onChange={e => { setUsername(e.target.value); setError(''); }}
                 placeholder={`e.g. ${config.username}`}
                 className="w-full text-sm p-3 rounded-xl outline-none transition-all focus:ring-2"
-                style={{ background: 'var(--heart-bg)', color: 'var(--heart-text)', border: '1px solid var(--heart-border)', ['--tw-ring-color' as string]: config.accent }}
+                style={{ background: 'var(--heart-bg)', color: 'var(--heart-text)', border: '1px solid var(--heart-border)' }}
                 autoFocus />
             </div>
             <div>
