@@ -168,7 +168,7 @@ Provide your clinical assessment and care routing decision.`;
       combinedRiskScore: 0,
     };
     simulatedRisks.combinedRiskScore = Math.max(simulatedRisks.cardiovascularRisk, simulatedRisks.mobilityRisk, simulatedRisks.engagementRisk);
-    
+
     // Retrieve guidelines via RAG
     const guidelines = await retrieveRelevantGuidelines(simulatedRisks);
     const ragPrompt = buildRAGEnrichedPrompt(guidelines);
@@ -236,7 +236,7 @@ Provide enhanced clinical assessment with trend analysis.`;
       combinedRiskScore: 0,
     };
     simulatedRisks.combinedRiskScore = Math.max(simulatedRisks.cardiovascularRisk, simulatedRisks.mobilityRisk, simulatedRisks.engagementRisk);
-    
+
     const guidelines = await retrieveRelevantGuidelines(simulatedRisks);
     const ragPrompt = buildRAGEnrichedPrompt(guidelines);
 

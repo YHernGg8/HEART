@@ -101,6 +101,12 @@ npm install
 
 The project runs both a React frontend and an Express backend.
 
+#### Option A: One-Click (Windows)
+Double-click the `run_heart.bat` file in the root directory. This will automatically open two command prompts for you:
+1. One for the AI Backend Server (Port 3000)
+2. One for the Frontend Website (Port 5175)
+
+#### Option B: Manual
 ```bash
 # Terminal 1: Start Backend Server
 npm run server:dev
@@ -109,8 +115,8 @@ npm run server:dev
 npm run dev
 ```
 
-Frontend starts on `http://localhost:5175`
-Backend Server starts on `http://localhost:3000`
+Frontend: `http://localhost:5175`
+Backend: `http://localhost:3000`
 
 ### 3. Test API
 
