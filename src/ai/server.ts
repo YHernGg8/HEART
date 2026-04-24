@@ -193,6 +193,12 @@ const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
 app.use(express.json());
 
+/* ─── Serve static frontend in production ─── */
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.resolve(__dirname, '../../dist');
+  app.use(express.static(distPath));
+}
+
 /* ─── Health Check ─── */
 app.get('/health', (_req, res) => {
   res.json({
@@ -459,6 +465,14 @@ Provide your clinical assessment.`;
     res.status(500).json({ error: 'Batch decision failed', details: error.message });
   }
 });
+
+/* ─── SPA Fallback (production) — must be AFTER all API routes ─── */
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.resolve(__dirname, '../../dist');
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
 
 /* ─── Start Server ─── */
 const PORT = parseInt(process.env.PORT || '3000', 10);
