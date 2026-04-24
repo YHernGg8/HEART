@@ -68,9 +68,16 @@ export async function getSnapshotDecision(input: SnapshotInput): Promise<{ succe
       body: JSON.stringify(input),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Request failed');
-    return { success: true, decision: data.decision };
+    console.log('[HEART AI] Snapshot response:', data);
+    if (!res.ok) throw new Error(data.error || data.details || 'Request failed');
+    // Handle both response formats: { success, decision } wrapper OR direct decision
+    const decision = data.decision || data;
+    if (decision.riskScore !== undefined && decision.action) {
+      return { success: true, decision: decision as AIDecision };
+    }
+    throw new Error('Invalid AI response format');
   } catch (err: any) {
+    console.error('[HEART AI] Snapshot error:', err);
     return { success: false, error: err.message };
   }
 }
@@ -122,9 +129,12 @@ export async function sendChatMessage(message: string, patientContext?: any): Pr
       body: JSON.stringify({ message, patientContext }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Request failed');
-    return { success: true, reply: data.reply, timestamp: data.timestamp };
+    console.log('[HEART AI] Chat response:', data);
+    if (!res.ok) throw new Error(data.error || data.details || 'Request failed');
+    const reply = data.reply || data.text || (typeof data === 'string' ? data : '');
+    return { success: true, reply, timestamp: data.timestamp || new Date().toISOString() };
   } catch (err: any) {
+    console.error('[HEART AI] Chat error:', err);
     return { success: false, reply: '', timestamp: new Date().toISOString() };
   }
 }
