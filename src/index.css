@@ -1,0 +1,199 @@
+/* ============================================================================
+   HEART Design System — Light Theme (Warm & Clean)
+   Inspired by modern healthcare dashboards
+   ============================================================================ */
+
+@import "tailwindcss";
+
+/* --- Light Theme Variables --- */
+:root {
+  --heart-bg: #f6f5f1;
+  --heart-bg-alt: #efeee9;
+  --heart-surface: #ffffff;
+  --heart-surface-2: #f9f8f5;
+  --heart-border: #e4e2dc;
+  --heart-border-light: #edebe6;
+  --heart-text: #1a1a1a;
+  --heart-text-secondary: #6b7280;
+  --heart-text-muted: #9ca3af;
+  --heart-accent: #e74c5a;
+  --heart-accent-soft: #fdedef;
+  --heart-radius: 16px;
+  --heart-radius-sm: 10px;
+  --heart-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
+  --heart-shadow-lg: 0 4px 16px rgba(0,0,0,0.06), 0 8px 32px rgba(0,0,0,0.04);
+  --heart-shadow-active: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* --- Base Styles --- */
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--heart-bg);
+  color: var(--heart-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- Card System --- */
+.card {
+  background: var(--heart-surface);
+  border-radius: var(--heart-radius);
+  box-shadow: var(--heart-shadow);
+  border: 1px solid var(--heart-border-light);
+  transition: box-shadow 0.2s, transform 0.15s;
+}
+.card:hover {
+  box-shadow: var(--heart-shadow-lg);
+}
+.card-sm {
+  border-radius: var(--heart-radius-sm);
+}
+
+/* --- Metric Cards (Pastel Tints) --- */
+.metric-card {
+  border-radius: var(--heart-radius);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  transition: transform 0.15s, box-shadow 0.2s;
+}
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--heart-shadow-lg);
+}
+.metric-mint  { background: #e8f5ec; }
+.metric-peach { background: #fde8e8; }
+.metric-sky   { background: #e8f0fd; }
+.metric-amber { background: #fef3e0; }
+.metric-lilac { background: #f0e8fd; }
+.metric-cream { background: #fdf8e8; }
+
+/* --- Risk Badges (Light Mode) --- */
+.risk-green  { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+.risk-yellow { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+.risk-orange { background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; }
+.risk-red    { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+
+.risk-green-strong  { background: #059669; color: white; }
+.risk-yellow-strong { background: #d97706; color: white; }
+.risk-orange-strong { background: #ea580c; color: white; }
+.risk-red-strong    { background: #dc2626; color: white; }
+
+/* --- Patient Cards (Colored left border) --- */
+.patient-card {
+  background: var(--heart-surface);
+  border-radius: var(--heart-radius);
+  box-shadow: var(--heart-shadow);
+  border: 1px solid var(--heart-border-light);
+  border-left: 4px solid transparent;
+  transition: all 0.2s;
+}
+.patient-card:hover {
+  box-shadow: var(--heart-shadow-lg);
+  transform: translateY(-1px);
+}
+.patient-card.risk-border-green  { border-left-color: #10b981; }
+.patient-card.risk-border-yellow { border-left-color: #f59e0b; }
+.patient-card.risk-border-orange { border-left-color: #f97316; }
+.patient-card.risk-border-red    { border-left-color: #ef4444; }
+
+/* --- Status Dot --- */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: gentle-pulse 2s ease-in-out infinite;
+}
+.status-dot-green  { background: #10b981; }
+.status-dot-yellow { background: #f59e0b; }
+.status-dot-orange { background: #f97316; }
+.status-dot-red    { background: #ef4444; }
+
+@keyframes gentle-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* --- Buttons --- */
+.btn-primary {
+  background: var(--heart-accent);
+  color: white;
+  border: none;
+  border-radius: var(--heart-radius-sm);
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: 0 2px 8px rgba(231, 76, 90, 0.2);
+}
+.btn-primary:hover {
+  background: #d4404f;
+  box-shadow: 0 4px 12px rgba(231, 76, 90, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-soft {
+  background: var(--heart-surface);
+  color: var(--heart-text);
+  border: 1px solid var(--heart-border);
+  border-radius: var(--heart-radius-sm);
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-soft:hover {
+  background: var(--heart-bg-alt);
+  border-color: var(--heart-text-muted);
+}
+.btn-soft.active {
+  background: var(--heart-text);
+  color: white;
+  border-color: var(--heart-text);
+}
+
+/* --- Sidebar --- */
+.sidebar {
+  background: var(--heart-surface);
+  border-right: 1px solid var(--heart-border-light);
+  min-height: calc(100vh - 3.5rem);
+}
+
+/* --- Scrollbar --- */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* --- Progress Bar --- */
+.progress-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.8s ease;
+}
+
+/* --- Chart Container --- */
+.chart-container {
+  background: var(--heart-surface);
+  border-radius: var(--heart-radius);
+  border: 1px solid var(--heart-border-light);
+  padding: 1.25rem;
+}
+
+/* --- Responsive Utils --- */
+@media (max-width: 768px) {
+  :root {
+    --heart-radius: 12px;
+    --heart-radius-sm: 8px;
+  }
+}

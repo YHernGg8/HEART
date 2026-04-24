@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "heart-ai-engine",
+  "private_key_id": "5976ac59f2dd167d9edfd6e21dc5db084376a3e5",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCeiEBRP/K9D5O8\n+5kOckcwTw/PYrHJDOfRjZ+2IpaFyKSyDLovCNmxW7qAUBHWikQ2NTck8kzIidZl\nZJEaDNyjYWsvTB8Otso+rmG7EZB07ekSjF8xdS402jc2OwVXV0TiKGafTVKJl+S4\nttdJvbudHfVAj/DqljJWGFaU1AMWQY7FTgjCOMvKVxHCRwnXsq4Y2ytCrXpv2Jl8\n9AIquv9ukISQuEKEkL9ukaInIZu9pO+4dt24dtDtcKvlPU3Ks0ah7Lar4lhF/B0Y\nwpYEMU1q4en5HRnAZn3JSOY9dttFQWuLZrJddDvj/zWXvAXG1lbUaEK7OQrJo1m6\nrwgY+vAlAgMBAAECggEABLp+Jp5AbHyyNKURfeGRN4LoLxCbymog4Pp3LMzPzgo7\nxVbFV+FM8vIQOEMLISnLGo3QSQEUIrgfxbLv9AW1sAbYFldQJtVzZ1a2sgh2VVKC\nTOwUa8p5uBhZJLwybtY6xv8a/n3lLBb0esDzX27yEV/jIIuajTixJCnCLVq8g9Wh\nOsIxuD+rt2FP+FflpnMZsqiCaWs1KZy8JuTS3vkpvdUnIop4zHVQj5u9UQAWAlfx\nNzbnT+Z1N4hGnAiiJi+m9ikHzzashbpf7pAa+AFd7sFHd9GBVtrpAsVrH+hi24fi\n86v/ufJED5amXxhSXTVgc5jcgRl7KeXPCNB24arPOQKBgQDJgD8F20E6I1JJo2T5\nyTl4zb3vCrDVscsnxxGGwVXTv9X7JLRIcAtYq/lP0yJhriqhFoNEgAuMdbwgnfco\nvDTL6bjs/eoBykz+bH87CO7cLu09x63fN525WSh8iXUK41/eVnll3kZVfV/PzpGr\nQ/irqVoFoCLLBSXrOOGwvHZguQKBgQDJaOMTefzHgRni6jh3aA1XPpSAKkkdg47m\nN82f0DJckKda3zdePkiRCd1yexor09SZMg+OPsSiZvFj+1D9oKzBZg6IZTCF1tCo\nfKc154nTRt0JjpXf9XvPtbXB1M/ZfsJaFzzOhHv8WzOFpKq8RWmlq9EZMb7UXGkk\nK13dtlVczQKBgH7bytG5E/uyOSA7SlsoIJK5lRZluKcQ5EIKxjH8jjhd0i3nEcl5\nIOuWecOTvVWZ/SSls8bwhlTL2sD+MpjmxKaMYuxxf13ZK1gSnpdgLGFa+emnSQP7\nU8VZKHAfahyMwdKMxqkno0g3QpbmCje09127pP1dsAn5F8JbcVt/i1ehAoGAHpdB\nthmXHS4solx0yx4QuKmWoIjLpiHvOGRNZPKYU5rc8F5q6HOJTg4zhknQRcvcxI/n\n8PDzqL799vOa74rR8mXv2yOTZSClfJHCS9upAWAH/oWbmfKNJZUx0AjksOIh3tEc\nuTlCI6gugSPrksDwNOuNzMfTdim7BnVXwm8JNBkCgYBkRZRa5mMaL6fht8f7zXb2\nlPppvBXHuAqEd+Jmuly+BCp7vbNfvgHVl1OHH0rwIyYqgNVNxOx4iM5rWp5Grzni\nmeZnuie4tqYM+iWjFxPcFKzJlCRN670Viw70RT5i7vRIiN1PSrN1+OfEwVePpHHw\nbS9VFIaKjZhuxHx4M4Zn/w==\n-----END PRIVATE KEY-----\n",
+  "client_email": "heart-backend@heart-ai-engine.iam.gserviceaccount.com",
+  "client_id": "104728122705555483221",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/heart-backend%40heart-ai-engine.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

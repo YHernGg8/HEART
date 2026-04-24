@@ -1,0 +1,341 @@
+/**
+ * HEART AI Backend Server
+ * Uses Google Generative AI (Gemini 2.5 Flash) for clinical reasoning
+ * Reads .env manually since dotenv may not be installed
+ */
+
+import express from 'express';
+import cors from 'cors';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+/* ─── Load .env manually ─── */
+function loadEnv() {
+  const envPath = path.resolve(__dirname, '../../.env');
+  if (fs.existsSync(envPath)) {
+    const lines = fs.readFileSync(envPath, 'utf-8').split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx > 0) {
+        const key = trimmed.substring(0, eqIdx).trim();
+        const value = trimmed.substring(eqIdx + 1).trim();
+        if (!process.env[key]) process.env[key] = value;
+      }
+    }
+    console.log('✅ Loaded .env from', envPath);
+  } else {
+    console.warn('⚠️ No .env file found at', envPath);
+  }
+}
+loadEnv();
+
+/* ─── Setup Gemini ─── */
+const API_KEY = process.env.GOOGLE_API_KEY || '';
+if (!API_KEY) {
+  console.error('❌ GOOGLE_API_KEY not found in .env');
+  process.exit(1);
+}
+
+const genAI = new GoogleGenerativeAI(API_KEY);
+const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+/* ─── System Prompt ─── */
+const HEART_SYSTEM_PROMPT = `You are HEART (Homecare & Emergency AI Routing Technology), an autonomous care decision engine for elderly patients in Malaysia.
+
+You analyze smartwatch telemetry (Heart Rate, Steps) and check-in responses to detect gradual decline. You route decisions to 4 escalation levels:
+- MONITOR (Green): Patient stable, continue monitoring
+- FAMILY_CHECK (Yellow): Contact family for welfare check
+- CLINIC_VISIT (Orange): Schedule clinic visit within 24-48 hours
+- CALL_999 (Red): Immediate emergency response
+
+Your responses MUST be in this exact JSON format:
+{
+  "riskScore": <number 1-10>,
+  "action": "<MONITOR|FAMILY_CHECK|CLINIC_VISIT|CALL_999>",
+  "confidencePercent": <number 1-100>,
+  "reasoning": {
+    "en": "<clinical reasoning in English>",
+    "ms": "<clinical reasoning in Bahasa Malaysia>"
+  },
+  "riskFactors": {
+    "cardiovascularRisk": <number 1-10>,
+    "mobilityRisk": <number 1-10>,
+    "engagementRisk": <number 1-10>,
+    "socialRisk": <number 1-10>,
+    "combinedRiskScore": <number 1-10>
+  },
+  "actionPlan": {
+    "en": "<specific action plan in English>",
+    "ms": "<specific action plan in Bahasa Malaysia>"
+  },
+  "estimatedOutcome": {
+    "en": "<prognosis in English>",
+    "ms": "<prognosis in Bahasa Malaysia>"
+  },
+  "referencedGuidelines": ["<relevant clinical guideline names>"],
+  "whatsappMessage": {
+    "en": "<message template for WhatsApp notification>",
+    "ms": "<message template in Bahasa Malaysia>"
+  }
+}
+
+Clinical knowledge to reference:
+- NHS Guidelines for Elderly Care
+- KKM (Kementerian Kesihatan Malaysia) clinical standards
+- NICE Guidelines for Heart Failure
+- WHO Integrated Care Guidelines
+- Fall Prevention Protocols
+
+CRITICAL RULES:
+1. A riskScore of 1–3 = MONITOR, 4–5 = FAMILY_CHECK, 6–7 = CLINIC_VISIT, 8–10 = CALL_999
+2. No check-in for 2+ days with declining vitals = minimum CLINIC_VISIT
+3. Heart rate >100 or <50 with other declining signals = CALL_999
+4. Steps declining >50% from baseline = at minimum FAMILY_CHECK
+5. Always provide bilingual reasoning (English + Bahasa Malaysia)
+6. Reference specific clinical guidelines when applicable
+7. Return ONLY valid JSON, no markdown or extra text`;
+
+/* ─── Express App ─── */
+const app = express();
+app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+app.use(express.json());
+
+/* ─── Health Check ─── */
+app.get('/health', (_req, res) => {
+  res.json({
+    status: 'healthy',
+    service: 'HEART AI Backend',
+    timestamp: new Date().toISOString(),
+    model: 'gemini-2.0-flash',
+  });
+});
+
+/* ─── Snapshot Decision ─── */
+app.post('/api/care-decision/snapshot', async (req, res) => {
+  try {
+    const { averageHeartRate, dailySteps, daysSinceLastCheckin, patientName, age, gender, medicalHistory } = req.body;
+
+    if (!averageHeartRate || dailySteps === undefined || daysSinceLastCheckin === undefined) {
+      res.status(400).json({ error: 'Missing required fields: averageHeartRate, dailySteps, daysSinceLastCheckin' });
+      return;
+    }
+
+    const prompt = `Analyze this elderly patient's vital signs and provide a care decision:
+
+Patient: ${patientName || 'Unknown'} (${age || 'Unknown'} years, ${gender || 'Unknown'})
+Medical History: ${medicalHistory || 'None provided'}
+
+Current telemetry (7-day averages):
+- Average Heart Rate: ${averageHeartRate} BPM
+- Daily Steps: ${dailySteps}
+- Days Since Last Check-in: ${daysSinceLastCheckin}
+
+Provide your clinical assessment and care routing decision.`;
+
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      systemInstruction: { role: 'system', parts: [{ text: HEART_SYSTEM_PROMPT }] },
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 2048,
+        responseMimeType: 'application/json',
+      },
+    });
+
+    const text = result.response.text();
+    const parsed = JSON.parse(text);
+
+    res.json({
+      success: true,
+      decision: parsed,
+      metadata: {
+        model: 'gemini-2.0-flash',
+        timestamp: new Date().toISOString(),
+        input: { averageHeartRate, dailySteps, daysSinceLastCheckin },
+      },
+    });
+  } catch (error: any) {
+    console.error('❌ Snapshot decision error:', error.message);
+    res.status(500).json({ error: 'AI decision failed', details: error.message });
+  }
+});
+
+/* ─── Enhanced Decision (with history) ─── */
+app.post('/api/care-decision/enhanced', async (req, res) => {
+  try {
+    const {
+      averageHeartRate, dailySteps, daysSinceLastCheckin,
+      patientName, age, gender, medicalHistory,
+      baselineHeartRate, baselineSteps, previousDecisions,
+    } = req.body;
+
+    const prompt = `Perform enhanced clinical analysis on this elderly patient:
+
+Patient: ${patientName || 'Unknown'} (${age || 'Unknown'} years, ${gender || 'Unknown'})
+Medical History: ${medicalHistory || 'None provided'}
+
+CURRENT telemetry (7-day averages):
+- Heart Rate: ${averageHeartRate} BPM (Baseline: ${baselineHeartRate || 'N/A'} BPM)
+- Daily Steps: ${dailySteps} (Baseline: ${baselineSteps || 'N/A'})
+- Days Since Last Check-in: ${daysSinceLastCheckin}
+
+${baselineHeartRate ? `Heart Rate Change: ${((averageHeartRate - baselineHeartRate) / baselineHeartRate * 100).toFixed(1)}%` : ''}
+${baselineSteps ? `Steps Change: ${((dailySteps - baselineSteps) / baselineSteps * 100).toFixed(1)}%` : ''}
+
+Previous decisions: ${previousDecisions ? JSON.stringify(previousDecisions) : 'None'}
+
+Provide enhanced clinical assessment with trend analysis.`;
+
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      systemInstruction: { role: 'system', parts: [{ text: HEART_SYSTEM_PROMPT }] },
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 2048,
+        responseMimeType: 'application/json',
+      },
+    });
+
+    const text = result.response.text();
+    const parsed = JSON.parse(text);
+
+    res.json({
+      success: true,
+      decision: parsed,
+      metadata: {
+        model: 'gemini-2.0-flash',
+        timestamp: new Date().toISOString(),
+        enhanced: true,
+      },
+    });
+  } catch (error: any) {
+    console.error('❌ Enhanced decision error:', error.message);
+    res.status(500).json({ error: 'Enhanced AI decision failed', details: error.message });
+  }
+});
+
+/* ─── Chat Endpoint ─── */
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { message, patientContext } = req.body;
+
+    if (!message) {
+      res.status(400).json({ error: 'Message is required' });
+      return;
+    }
+
+    const contextPrompt = patientContext
+      ? `\n\nPatient context: ${JSON.stringify(patientContext)}`
+      : '';
+
+    const chatSystemPrompt = `You are HEART AI Assistant, a clinical decision support chatbot for caregivers and healthcare operators in Malaysia. You provide bilingual support (English and Bahasa Malaysia).
+
+You help with:
+1. Interpreting patient vital signs and risk assessments
+2. Explaining care decisions and their reasoning
+3. Providing general elderly care guidance
+4. Answering questions about the HEART monitoring system
+
+Always be professional, empathetic, and evidence-based. If a question involves emergency symptoms, advise calling 999 immediately.${contextPrompt}`;
+
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: message }] }],
+      systemInstruction: { role: 'system', parts: [{ text: chatSystemPrompt }] },
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 1024,
+      },
+    });
+
+    const reply = result.response.text();
+
+    res.json({
+      success: true,
+      reply,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('❌ Chat error:', error.message);
+    res.status(500).json({ error: 'Chat failed', details: error.message });
+  }
+});
+
+/* ─── Demo Patients (mock data endpoint) ─── */
+app.get('/api/demo/patients', (_req, res) => {
+  res.json({
+    success: true,
+    patients: [
+      { patientId: 'pat_001', name: 'Ahmad bin Abdullah', age: 78, gender: 'M', avgHR: 74, steps: 5200, checkinDays: 0 },
+      { patientId: 'pat_002', name: 'Lee Chong Wei', age: 73, gender: 'M', avgHR: 63, steps: 7500, checkinDays: 0 },
+      { patientId: 'pat_003', name: 'Fatimah binti Hassan', age: 85, gender: 'F', avgHR: 95, steps: 200, checkinDays: 2 },
+      { patientId: 'pat_004', name: 'Rajendran a/l Muthu', age: 75, gender: 'M', avgHR: 85, steps: 3300, checkinDays: 1 },
+      { patientId: 'pat_005', name: 'Mary Tan Siew Lian', age: 82, gender: 'F', avgHR: 75, steps: 3000, checkinDays: 1 },
+    ],
+  });
+});
+
+/* ─── Batch Decision for Multiple Patients ─── */
+app.post('/api/care-decision/batch', async (req, res) => {
+  try {
+    const { patients } = req.body;
+
+    if (!patients || !Array.isArray(patients)) {
+      res.status(400).json({ error: 'patients array is required' });
+      return;
+    }
+
+    const results = [];
+    for (const patient of patients) {
+      try {
+        const prompt = `Analyze this elderly patient's vital signs and provide a care decision:
+Patient: ${patient.name || 'Unknown'} (${patient.age || 'Unknown'} years, ${patient.gender || 'Unknown'})
+Medical History: ${patient.medicalHistory || 'None provided'}
+- Average Heart Rate: ${patient.avgHR || patient.averageHeartRate} BPM
+- Daily Steps: ${patient.steps || patient.dailySteps}
+- Days Since Last Check-in: ${patient.checkinDays || patient.daysSinceLastCheckin || 0}
+Provide your clinical assessment.`;
+
+        const result = await model.generateContent({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          systemInstruction: { role: 'system', parts: [{ text: HEART_SYSTEM_PROMPT }] },
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 2048,
+            responseMimeType: 'application/json',
+          },
+        });
+
+        const parsed = JSON.parse(result.response.text());
+        results.push({ patientId: patient.patientId, success: true, decision: parsed });
+      } catch (err: any) {
+        results.push({ patientId: patient.patientId, success: false, error: err.message });
+      }
+    }
+
+    res.json({ success: true, results, timestamp: new Date().toISOString() });
+  } catch (error: any) {
+    console.error('❌ Batch decision error:', error.message);
+    res.status(500).json({ error: 'Batch decision failed', details: error.message });
+  }
+});
+
+/* ─── Start Server ─── */
+const PORT = parseInt(process.env.PORT || '3000', 10);
+app.listen(PORT, () => {
+  console.log(`\n🫀 HEART AI Backend running on http://localhost:${PORT}`);
+  console.log(`   Model: gemini-2.0-flash`);
+  console.log(`   Endpoints:`);
+  console.log(`   POST /api/care-decision/snapshot`);
+  console.log(`   POST /api/care-decision/enhanced`);
+  console.log(`   POST /api/care-decision/batch`);
+  console.log(`   POST /api/chat`);
+  console.log(`   GET  /api/demo/patients`);
+  console.log(`   GET  /health\n`);
+});
