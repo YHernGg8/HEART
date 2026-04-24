@@ -10,6 +10,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { initializeRAGSystem, retrieveRelevantGuidelines, buildRAGEnrichedPrompt } from './rag-system.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,6 +36,9 @@ function loadEnv() {
   }
 }
 loadEnv();
+
+/* ─── Initialize RAG ─── */
+initializeRAGSystem();
 
 /* ─── Setup Gemini ─── */
 const API_KEY = process.env.GOOGLE_API_KEY || '';
@@ -139,9 +143,23 @@ Current telemetry (7-day averages):
 
 Provide your clinical assessment and care routing decision.`;
 
+    // Mock risk assessment for RAG retrieval
+    const simulatedRisks = {
+      cardiovascularRisk: averageHeartRate > 100 || averageHeartRate < 50 ? 8 : 4,
+      mobilityRisk: dailySteps < 1000 ? 7 : 3,
+      engagementRisk: daysSinceLastCheckin > 1 ? 8 : 2,
+      socialRisk: 3,
+      combinedRiskScore: 0,
+    };
+    simulatedRisks.combinedRiskScore = Math.max(simulatedRisks.cardiovascularRisk, simulatedRisks.mobilityRisk, simulatedRisks.engagementRisk);
+    
+    // Retrieve guidelines via RAG
+    const guidelines = await retrieveRelevantGuidelines(simulatedRisks);
+    const ragPrompt = buildRAGEnrichedPrompt(guidelines);
+
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      systemInstruction: { role: 'system', parts: [{ text: HEART_SYSTEM_PROMPT }] },
+      systemInstruction: { role: 'system', parts: [{ text: ragPrompt + '\n' + HEART_SYSTEM_PROMPT }] },
       generationConfig: {
         temperature: 0.3,
         maxOutputTokens: 2048,
@@ -193,9 +211,22 @@ Previous decisions: ${previousDecisions ? JSON.stringify(previousDecisions) : 'N
 
 Provide enhanced clinical assessment with trend analysis.`;
 
+    // Mock risk assessment for RAG retrieval
+    const simulatedRisks = {
+      cardiovascularRisk: averageHeartRate > 100 || averageHeartRate < 50 ? 8 : 4,
+      mobilityRisk: dailySteps < 1000 ? 7 : 3,
+      engagementRisk: daysSinceLastCheckin > 1 ? 8 : 2,
+      socialRisk: 3,
+      combinedRiskScore: 0,
+    };
+    simulatedRisks.combinedRiskScore = Math.max(simulatedRisks.cardiovascularRisk, simulatedRisks.mobilityRisk, simulatedRisks.engagementRisk);
+    
+    const guidelines = await retrieveRelevantGuidelines(simulatedRisks);
+    const ragPrompt = buildRAGEnrichedPrompt(guidelines);
+
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      systemInstruction: { role: 'system', parts: [{ text: HEART_SYSTEM_PROMPT }] },
+      systemInstruction: { role: 'system', parts: [{ text: ragPrompt + '\n' + HEART_SYSTEM_PROMPT }] },
       generationConfig: {
         temperature: 0.3,
         maxOutputTokens: 2048,

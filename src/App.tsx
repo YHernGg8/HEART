@@ -6,13 +6,14 @@ import OperatorView from './views/OperatorView';
 import FieldUnitView from './views/FieldUnitView';
 import HospitalView from './views/HospitalView';
 import DoctorView from './views/DoctorView';
+import RoleLanding from './views/RoleLanding';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
-          <Route path="/" element={<Navigate to="/operator" replace />} />
+          <Route path="/" element={<RoleLanding />} />
           <Route path="/user" element={<LoginGate role="patient"><UserView /></LoginGate>} />
           <Route path="/operator" element={<LoginGate role="operator"><OperatorView /></LoginGate>} />
           <Route path="/doctor" element={<LoginGate role="doctor"><DoctorView /></LoginGate>} />

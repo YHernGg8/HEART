@@ -7,6 +7,7 @@
 
 import { MedicalGuideline, RiskFactors } from './types.js';
 import { KNOWLEDGE_BASE } from './rag-system-mock.js';
+import { initializeVertexSearch, retrieveGuidelinesFromVertex } from './rag-system-vertex.js';
 
 let vertexSearchEnabled = false;
 
@@ -20,6 +21,7 @@ export function initializeRAGSystem(): void {
 
   if (engineId || dataStoreId) {
     try {
+      initializeVertexSearch();
       vertexSearchEnabled = true;
       console.log('✅ Vertex AI Search RAG enabled');
     } catch (error) {
@@ -36,7 +38,18 @@ export function initializeRAGSystem(): void {
  * Retrieve relevant medical guidelines based on risk profile
  */
 export async function retrieveRelevantGuidelines(riskFactors: RiskFactors): Promise<MedicalGuideline[]> {
-  // Always use mock knowledge base for now (Vertex AI Search integration added separately)
+  if (vertexSearchEnabled) {
+    try {
+      const results = await retrieveGuidelinesFromVertex(riskFactors);
+      if (results && results.length > 0) {
+        return results;
+      } else {
+        console.warn('⚠️ Vertex AI Search returned no results. Falling back to mock RAG.');
+      }
+    } catch (error) {
+      console.error('❌ Vertex AI Search error:', (error as Error).message, 'Falling back to mock RAG.');
+    }
+  }
   return retrieveFromMockKB(riskFactors);
 }
 

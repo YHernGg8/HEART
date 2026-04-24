@@ -9,7 +9,7 @@ import {
   Activity, Shield, FileText, AlertTriangle, Eye,
   Stethoscope, CheckSquare, Square, Siren, Search,
   Plus, Download, Printer, Phone, Mail, MapPin, Calendar,
-  User, Heart, Clock,
+  User, Heart, Clock, X, Edit3,
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, ResponsiveContainer,
@@ -207,6 +207,7 @@ export default function DoctorView() {
   const [addGender, setAddGender] = useState('Male');
   const [addPhone, setAddPhone] = useState('');
   const [reportOpen, setReportOpen] = useState(false);
+  const [showDocModal, setShowDocModal] = useState<{ open: boolean; doc: any }>({ open: false, doc: null });
 
   const filteredPatients = useMemo(() =>
     patientProfiles.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())),
@@ -370,7 +371,7 @@ export default function DoctorView() {
                 <div className="space-y-3">
                   {patient.documents.map((d, i) => (
                     <button key={i} className="flex items-center gap-2.5 w-full text-left hover:bg-gray-50 rounded-lg p-1 -m-1 transition-all"
-                      onClick={() => alert(`Opening document: ${d.name} (${d.size})`)}>
+                      onClick={() => setShowDocModal({ open: true, doc: d })}>
                       <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-none"
                         style={{ background: d.type === 'blue' ? '#e0f2fe' : '#fee2e2' }}>
                         <FileText className="h-4 w-4" style={{ color: d.type === 'blue' ? '#3b82f6' : '#ef4444' }} />
@@ -488,6 +489,57 @@ export default function DoctorView() {
               <div className="p-3 rounded-xl" style={{ background: 'var(--heart-bg)' }}><div className="text-[10px] font-bold mb-2" style={{ color: 'var(--heart-text-muted)' }}>APPOINTMENTS</div>{patient.appointments.map((a, i) => <div key={i} className="flex items-center gap-2 mb-1"><span className="text-[10px]" style={{ color: a.done ? '#16a34a' : '#dc2626' }}>{a.done ? '✓' : '○'}</span><span className="text-xs" style={{ color: 'var(--heart-text)' }}>{a.name}</span><span className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>{a.date}</span></div>)}</div>
             </div>
             <button onClick={() => { window.print(); }} className="w-full mt-4 py-2 rounded-lg text-xs font-bold text-white" style={{ background: '#1e293b' }}>Print Report</button>
+          </div>
+        </div>
+      )}
+
+      {/* Document Agreement Modal */}
+      {showDocModal.open && showDocModal.doc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.4)' }}>
+          <div className="card-glass w-full max-w-2xl p-8 relative flex flex-col max-h-[90vh]">
+            <button onClick={() => setShowDocModal({ open: false, doc: null })} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600"><X className="h-5 w-5" /></button>
+            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-none" style={{ background: showDocModal.doc.type === 'blue' ? '#e0f2fe' : '#fee2e2' }}>
+                <FileText className="h-6 w-6" style={{ color: showDocModal.doc.type === 'blue' ? '#3b82f6' : '#ef4444' }} />
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-gray-800">{showDocModal.doc.name}</h2>
+                <div className="text-xs text-gray-500 font-medium">Patient: {patient.name} • IC: {patient.ic}</div>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto mb-6 p-6 rounded-xl border border-gray-200 bg-gray-50 text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">
+              {`MEDICAL AGREEMENT AND CONSENT
+
+This document serves as formal agreement and consent for the above-named patient, under the care of HEART Clinical Services.
+
+1. Description of Treatment/Procedure
+The patient agrees to undergo the medical treatment/procedure explicitly described in the primary consultation notes, which may include the administration of medications, surgical interventions, and post-operative monitoring.
+
+2. Risks and Complications
+The medical team has explained that no procedure is entirely without risk. Potential complications may include, but are not limited to, infection, bleeding, allergic reactions, and unforeseen cardiac events.
+
+3. Acknowledgement
+By signing below, the undersigned confirms that they have read and understood this document, that all questions have been answered satisfactorily, and that they voluntarily consent to the proposed medical intervention.
+
+Effective Date: ${new Date().toLocaleDateString('en-MY')}
+File Size: ${showDocModal.doc.size}`}
+            </div>
+
+            <div className="border-t border-gray-200 mt-auto pt-6 flex justify-between items-end">
+              <div className="flex-1">
+                <div className="text-xs font-bold text-gray-500 mb-2">Digital Signature Requested</div>
+                <div className="h-16 w-64 border-b-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-xs italic bg-gray-50/50 rounded-t-sm">
+                  Click to Sign
+                </div>
+              </div>
+              <button 
+                onClick={() => { alert('Document successfully signed and saved to EMHR.'); setShowDocModal({ open: false, doc: null }); }}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white transition-all hover:scale-[1.02]"
+                style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+                <Edit3 className="h-4 w-4" /> Sign & Approve Document
+              </button>
+            </div>
           </div>
         </div>
       )}
