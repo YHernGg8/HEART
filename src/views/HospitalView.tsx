@@ -269,27 +269,57 @@ export default function HospitalView() {
 
         {/* ════════ WARD MANAGEMENT PAGE ════════ */}
         {activePage === 'Ward Management' && (
-          <div className="card p-5">
-            <div className="flex items-center justify-between mb-4">
+          <div className="space-y-5">
+            <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--heart-text)' }}><BedDouble className="h-4 w-4" style={{ color: '#8b5cf6' }} /> Ward Bed Allocation</h2>
-              <div className="flex items-center gap-3 text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>
+              <div className="flex items-center gap-4 text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>
                 <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full" style={{ background: '#10b981' }} /> Available ({availBeds})</span>
                 <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full" style={{ background: '#ef4444' }} /> Occupied ({occBeds})</span>
               </div>
             </div>
-            {['ICU', 'Executive', 'Premium', 'Basic'].map(type => { const tb = beds.filter(b => b.type === type); return (
-              <div key={type} className="mb-5">
-                <div className="text-[10px] font-bold tracking-wider mb-2" style={{ color: 'var(--heart-text-muted)' }}>{type.toUpperCase()} ({tb.filter(b => b.status === 'available').length}/{tb.length})</div>
-                <div className="grid grid-cols-4 gap-3">{tb.map(bed => (
-                  <div key={bed.id} className="p-3 rounded-xl" style={{ background: bed.status === 'available' ? '#f0fdf4' : '#fef2f2', border: `1px solid ${bed.status === 'available' ? '#bbf7d0' : '#fecaca'}` }}>
-                    <div className="flex items-center justify-between mb-1"><span className="text-xs font-bold" style={{ color: 'var(--heart-text)' }}>{bed.id}</span><span className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: bed.status === 'available' ? '#dcfce7' : '#fee2e2', color: bed.status === 'available' ? '#16a34a' : '#dc2626' }}>{bed.status === 'available' ? 'Free' : 'Occupied'}</span></div>
-                    {bed.patient ? (<><div className="text-[10px] font-semibold truncate" style={{ color: 'var(--heart-text)' }}>{bed.patient}</div>{bed.doctor && <div className="text-[9px] truncate" style={{ color: 'var(--heart-text-muted)' }}>👨‍⚕️ {bed.doctor}</div>}<button onClick={() => dischargeBed(bed.id)} className="mt-1.5 w-full py-1 rounded text-[9px] font-semibold" style={{ background: '#fee2e2', color: '#dc2626' }}>Discharge</button></>) : (
-                      <button onClick={() => { setAssignModal(bed.id); setAssignName(''); setAssignDoc(''); }} className="mt-1 w-full py-1.5 rounded-lg text-[9px] font-bold text-white" style={{ background: '#1e293b' }}>Assign Bed</button>
-                    )}
+            {(['ICU', 'Executive', 'Premium', 'Basic'] as const).map(type => {
+              const tb = beds.filter(b => b.type === type);
+              const occ = tb.filter(b => b.status === 'occupied').length;
+              const typeColors: Record<string, { accent: string; bg: string; border: string; glow: string }> = {
+                ICU: { accent: '#dc2626', bg: '#fef2f2', border: '#fecaca', glow: 'rgba(220,38,38,0.08)' },
+                Executive: { accent: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe', glow: 'rgba(59,130,246,0.08)' },
+                Premium: { accent: '#8b5cf6', bg: '#f5f3ff', border: '#c4b5fd', glow: 'rgba(139,92,246,0.08)' },
+                Basic: { accent: '#10b981', bg: '#f0fdf4', border: '#bbf7d0', glow: 'rgba(16,185,129,0.08)' },
+              };
+              const tc = typeColors[type];
+              return (
+                <div key={type} className="card p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ background: tc.accent }} />
+                      <span className="text-xs font-bold" style={{ color: 'var(--heart-text)' }}>{type}</span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded" style={{ background: tc.bg, color: tc.accent }}>{occ}/{tb.length} Occupied</span>
+                    </div>
+                    <div className="w-32 h-2 rounded-full overflow-hidden" style={{ background: '#e5e7eb' }}>
+                      <div className="h-full rounded-full transition-all" style={{ width: `${(occ / tb.length) * 100}%`, background: tc.accent }} />
+                    </div>
                   </div>
-                ))}</div>
-              </div>
-            ); })}
+                  <div className="grid grid-cols-4 gap-3">{tb.map(bed => (
+                    <div key={bed.id} className="p-4 rounded-2xl transition-all hover:shadow-md hover:scale-[1.01] cursor-pointer group"
+                      style={{ background: bed.status === 'available' ? tc.bg : 'var(--heart-surface)', border: `1px solid ${bed.status === 'available' ? tc.border : 'var(--heart-border-light)'}`, boxShadow: bed.status === 'occupied' ? `0 0 0 1px ${tc.border}` : 'none' }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-black" style={{ color: tc.accent }}>{bed.id}</span>
+                        <span className="text-[8px] font-bold px-2 py-0.5 rounded-full" style={{ background: bed.status === 'available' ? '#dcfce7' : '#fee2e2', color: bed.status === 'available' ? '#16a34a' : '#dc2626' }}>{bed.status === 'available' ? '● Free' : '● Occupied'}</span>
+                      </div>
+                      {bed.patient ? (<>
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold" style={{ background: `${tc.accent}15`, color: tc.accent }}>{bed.patient.split(' ').map(w => w[0]).join('').substring(0, 2)}</div>
+                          <div className="min-w-0"><div className="text-[11px] font-bold truncate" style={{ color: 'var(--heart-text)' }}>{bed.patient}</div>{bed.doctor && <div className="text-[9px] truncate" style={{ color: 'var(--heart-text-muted)' }}>👨‍⚕️ {bed.doctor}</div>}</div>
+                        </div>
+                        <button onClick={() => dischargeBed(bed.id)} className="w-full py-1.5 rounded-lg text-[9px] font-semibold transition-all opacity-70 group-hover:opacity-100" style={{ background: '#fee2e2', color: '#dc2626' }}>Discharge</button>
+                      </>) : (
+                        <button onClick={() => { setAssignModal(bed.id); setAssignName(''); setAssignDoc(''); }} className="w-full py-2 rounded-lg text-[10px] font-bold text-white transition-all hover:opacity-90" style={{ background: tc.accent }}>Assign Bed</button>
+                      )}
+                    </div>
+                  ))}</div>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -300,7 +330,12 @@ export default function HospitalView() {
             <div className="space-y-2">{edPatients.map((p, i) => { const tc = sevColor(p.triage); return (
               <div key={i} className="flex items-center justify-between p-3 rounded-xl" style={{ background: p.assigned ? '#f0fdf4' : 'var(--heart-surface)', border: `1px solid ${p.assigned ? '#bbf7d0' : 'var(--heart-border-light)'}` }}>
                 <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: tc.bg, color: tc.color }}>{p.name.charAt(0)}</div><div><div className="text-xs font-bold" style={{ color: 'var(--heart-text)' }}>{p.name} <span className="font-normal" style={{ color: 'var(--heart-text-muted)' }}>({p.age}, {p.gender})</span></div><div className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>{p.complaint}</div></div></div>
-                <div className="flex items-center gap-3"><span className="text-[9px] font-bold px-2 py-0.5 rounded" style={{ background: tc.bg, color: tc.color }}>{p.triage}</span><span className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>{p.time}</span>{!p.assigned ? <button onClick={() => assignED(i)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold text-white" style={{ background: '#1e293b' }}><UserCheck className="h-3 w-3" /> Assign</button> : <span className="flex items-center gap-1 text-[10px] font-bold" style={{ color: '#16a34a' }}><CheckCircle className="h-3.5 w-3.5" /> Assigned</span>}</div>
+                <div className="flex items-center gap-2"><span className="text-[9px] font-bold px-2 py-0.5 rounded" style={{ background: tc.bg, color: tc.color }}>{p.triage}</span><span className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>{p.time}</span>
+                  {!p.assigned ? (<>
+                    <button onClick={() => { const icuBed = beds.find(b => b.type === 'ICU' && b.status === 'available'); if (icuBed) { setAssignModal(icuBed.id); setAssignName(p.name); setAssignDoc(''); } else { alert('No ICU beds available'); } }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold text-white" style={{ background: '#dc2626' }}><BedDouble className="h-3 w-3" /> Assign to ICU</button>
+                    <button onClick={() => assignED(i)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold text-white" style={{ background: '#1e293b' }}><UserCheck className="h-3 w-3" /> Assign</button>
+                  </>) : <span className="flex items-center gap-1 text-[10px] font-bold" style={{ color: '#16a34a' }}><CheckCircle className="h-3.5 w-3.5" /> Assigned</span>}
+                </div>
               </div>
             ); })}</div>
           </div>

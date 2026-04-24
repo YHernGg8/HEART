@@ -1,519 +1,394 @@
 /**
- * HEART Operator View — Salesforce Daily Operation Dashboard
- *
- * Features:
- * - Pipeline/Activity/Reports tabs
- * - Status pills + stats bar
- * - Kanban patient cards with INDEPENDENT expansion (multiple open at once)
- * - All buttons functional: WhatsApp, Call 999, Notes, Bell notifications, More menu
- * - AI-powered: clicking "Run AI" triggers live Gemini analysis
+ * HEART Operator View — 999 Dispatch Command Center
+ * Left: Active Emergencies list with severity badges
+ * Right: 999 Call Log & AI Analysis, Hospital Allocation, Dispatch
  */
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import {
-  Shield, MoreHorizontal, Heart, Footprints, Activity,
-  Brain, Target, Phone, MessageSquare, CheckCircle2,
-  TrendingDown, TrendingUp, Minus, Clock, BarChart3, MessageCircle,
-  Bell, Settings2, Layers, Search, AlertCircle, X,
-  RefreshCw,
+  Phone, PhoneCall, Radio, Building2, Users, AlertTriangle, MapPin,
+  Clock, Shield, Activity, Brain, CheckCircle, XCircle, Siren,
+  Plus, Search, Truck, ArrowRight, Wifi, ChevronDown,
 } from 'lucide-react';
-import { getMockDashboardPatients } from '../mock-data';
-import { getRiskColor, getActionLabel, getActionEmoji, type CareAction, type DashboardPatient } from '../types';
 import { getSnapshotDecision, type AIDecision } from '../services/api';
 
-/* ── Widget color palette ── */
-const widgetPalettes: Record<string, { bg: string; border: string; headerBg: string; dot: string }> = {
-  green:  { bg: '#f0fdf4', border: '#d1fae5', headerBg: '#dcfce7', dot: '#10b981' },
-  yellow: { bg: '#fefce8', border: '#fef08a', headerBg: '#fef9c3', dot: '#f59e0b' },
-  orange: { bg: '#fff7ed', border: '#fed7aa', headerBg: '#ffedd5', dot: '#f97316' },
-  red:    { bg: '#fdf2f8', border: '#fbcfe8', headerBg: '#fce7f3', dot: '#ec4899' },
-};
-
-/* ── Mock assigned staff ── */
-const mockAssignees: Record<string, { name: string; initials: string; color: string }> = {
-  pat_001: { name: 'Dr. Tan', initials: 'DT', color: '#3b82f6' },
-  pat_002: { name: 'Nurse Siti', initials: 'NS', color: '#8b5cf6' },
-  pat_003: { name: 'Dr. Lim', initials: 'DL', color: '#059669' },
-  pat_004: { name: 'Dr. Ahmad', initials: 'DA', color: '#dc2626' },
-  pat_005: { name: 'Nurse Mei', initials: 'NM', color: '#f59e0b' },
-  pat_006: { name: 'Dr. Lim', initials: 'DL', color: '#059669' },
-  pat_007: { name: 'Nurse Siti', initials: 'NS', color: '#8b5cf6' },
-  pat_008: { name: 'Nurse Mei', initials: 'NM', color: '#f59e0b' },
-};
-
-type FilterType = 'ALL' | CareAction;
-type ViewTab = 'Pipeline' | 'Activity' | 'Reports';
-
-export default function OperatorView() {
-  const patients = getMockDashboardPatients();
-  const [filter, setFilter] = useState<FilterType>('ALL');
-  const [activeTab, setActiveTab] = useState<ViewTab>('Pipeline');
-  // Single card expansion — only one card open at a time
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'compact'>('grid');
-  const [notifications, setNotifications] = useState([
-    { id: 1, msg: 'Fatimah binti Hassan — risk escalated to CALL_999', time: '2 min ago', read: false },
-    { id: 2, msg: 'New check-in from Ahmad bin Abdullah', time: '5 min ago', read: false },
-    { id: 3, msg: 'Weekly report generated for 8 patients', time: '1 hr ago', read: true },
-  ]);
-
-  const toggleExpand = (id: string) => {
-    setExpandedId(prev => prev === id ? null : id);
-  };
-
-  const sorted = useMemo(() => {
-    let filtered = [...patients].sort((a, b) => b.lastDecision.riskScore - a.lastDecision.riskScore);
-    if (filter !== 'ALL') filtered = filtered.filter(p => p.lastDecision.action === filter);
-    if (searchQuery) filtered = filtered.filter(p => p.patientName.toLowerCase().includes(searchQuery.toLowerCase()));
-    return filtered;
-  }, [patients, filter, searchQuery]);
-
-  const stats = {
-    weeksCases: patients.length,
-    pendingReview: patients.filter(p => ['FAMILY_CHECK', 'CLINIC_VISIT', 'CALL_999'].includes(p.lastDecision.action)).length,
-    activePatients: patients.filter(p => p.lastDecision.action !== 'MONITOR').length,
-    resolved: patients.filter(p => p.lastDecision.action === 'MONITOR').length,
-  };
-
-  const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-
-  return (
-    <div className="min-h-[calc(100vh-3.5rem)] p-5 lg:p-6">
-      {/* ── Top Bar ── */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-        <div>
-          <div className="text-xs mb-0.5" style={{ color: 'var(--heart-text-muted)' }}>Patient Schedule</div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--heart-text)' }}>Daily Operation</h1>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex items-center gap-1 p-1 rounded-full" style={{ background: 'var(--heart-surface)', border: '1px solid var(--heart-border-light)' }}>
-          {(['Pipeline', 'Activity', 'Reports'] as ViewTab[]).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className="px-4 py-1.5 rounded-full text-xs font-semibold transition-all"
-              style={{
-                background: activeTab === tab ? 'var(--heart-text)' : 'transparent',
-                color: activeTab === tab ? 'white' : 'var(--heart-text-secondary)',
-              }}>
-              {tab}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Status Pills + Stats ── */}
-      <div className="flex flex-wrap items-center gap-4 mb-6">
-        <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
-            style={{ background: '#dcfce7', color: '#16a34a' }}>
-            <div className="w-2 h-2 rounded-full" style={{ background: '#10b981' }} /> Active
-          </span>
-          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
-            style={{ background: '#fee2e2', color: '#dc2626' }}>
-            <div className="w-2 h-2 rounded-full" style={{ background: '#ef4444' }} /> Critical
-          </span>
-        </div>
-
-        {/* View mode buttons — functional */}
-        <div className="flex items-center gap-1 ml-2">
-          {([
-            { icon: Layers, mode: 'grid' as const, label: 'Grid View' },
-            { icon: BarChart3, mode: 'list' as const, label: 'List View' },
-            { icon: Layers, mode: 'compact' as const, label: 'Compact View' },
-          ]).map((item, i) => (
-            <button key={i} onClick={() => setViewMode(item.mode)} title={item.label}
-              className="p-2 rounded-lg transition-colors"
-              style={{ background: viewMode === item.mode ? 'var(--heart-text)' : 'transparent', color: viewMode === item.mode ? 'white' : 'var(--heart-text-muted)' }}>
-              <item.icon className="h-3.5 w-3.5" />
-            </button>
-          ))}
-        </div>
-
-        {/* Stats */}
-        <div className="flex items-center gap-6 ml-auto">
-          {[
-            { label: "Week's Cases", value: stats.weeksCases },
-            { label: "Pending Review", value: stats.pendingReview },
-            { label: "Active Patients", value: stats.activePatients },
-          ].map(s => (
-            <div key={s.label} className="text-center">
-              <div className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>{s.label}</div>
-              <div className="text-2xl font-black" style={{ color: 'var(--heart-text)' }}>{s.value}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Quick actions — functional */}
-        <div className="flex items-center gap-2 ml-4 relative">
-          <div className="relative">
-            <button onClick={() => { setNotifOpen(!notifOpen); setSettingsOpen(false); }}
-              className="p-2 rounded-xl relative" style={{ background: 'var(--heart-surface)', border: '1px solid var(--heart-border-light)' }}>
-              <Bell className="h-4 w-4" style={{ color: 'var(--heart-text-secondary)' }} />
-              {notifications.some(n => !n.read) && (
-                <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full" style={{ background: '#ef4444' }} />
-              )}
-            </button>
-            {/* Notification dropdown */}
-            {notifOpen && (
-              <div className="absolute right-0 top-11 w-72 card p-0 z-50 overflow-hidden" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.15)' }}>
-                <div className="p-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--heart-border-light)' }}>
-                  <span className="text-xs font-bold" style={{ color: 'var(--heart-text)' }}>Notifications</span>
-                  <button onClick={markAllRead} className="text-[10px] font-semibold" style={{ color: '#3b82f6' }}>Mark all read</button>
-                </div>
-                {notifications.map(n => (
-                  <div key={n.id} className="p-3 flex items-start gap-2 hover:bg-gray-50 transition-all cursor-pointer"
-                    style={{ borderBottom: '1px solid var(--heart-border-light)', background: n.read ? 'transparent' : '#f0f9ff' }}
-                    onClick={() => setNotifications(prev => prev.map(nn => nn.id === n.id ? { ...nn, read: true } : nn))}>
-                    <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-none" style={{ color: n.read ? '#9ca3af' : '#3b82f6' }} />
-                    <div>
-                      <div className="text-[10px] font-medium" style={{ color: 'var(--heart-text)' }}>{n.msg}</div>
-                      <div className="text-[9px]" style={{ color: 'var(--heart-text-muted)' }}>{n.time}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="relative">
-            <button onClick={() => { setSettingsOpen(!settingsOpen); setNotifOpen(false); }}
-              className="p-2 rounded-xl" style={{ background: 'var(--heart-surface)', border: '1px solid var(--heart-border-light)' }}>
-              <Settings2 className="h-4 w-4" style={{ color: 'var(--heart-text-secondary)' }} />
-            </button>
-            {settingsOpen && (
-              <div className="absolute right-0 top-11 w-52 card p-2 z-50" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.15)' }}>
-                {['Auto-refresh (30s)', 'Sound alerts', 'Dark mode', 'Compact cards'].map(opt => (
-                  <button key={opt} className="w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-gray-50 transition-all"
-                    style={{ color: 'var(--heart-text-secondary)' }}
-                    onClick={() => { alert(`${opt} toggled`); setSettingsOpen(false); }}>
-                    {opt}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Search + Filters ── */}
-      <div className="flex flex-wrap items-center gap-3 mb-5">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl flex-1 max-w-xs"
-          style={{ background: 'var(--heart-surface)', border: '1px solid var(--heart-border)' }}>
-          <Search className="h-3.5 w-3.5" style={{ color: 'var(--heart-text-muted)' }} />
-          <input type="text" placeholder="Search patients..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-            className="flex-1 bg-transparent text-xs outline-none" style={{ color: 'var(--heart-text)' }} />
-        </div>
-
-        {[
-          { key: 'ALL' as FilterType, label: 'All', count: patients.length },
-          { key: 'CALL_999' as FilterType, label: '🚨 Emergency', count: patients.filter(p => p.lastDecision.action === 'CALL_999').length },
-          { key: 'CLINIC_VISIT' as FilterType, label: '🏥 Clinic', count: patients.filter(p => p.lastDecision.action === 'CLINIC_VISIT').length },
-          { key: 'FAMILY_CHECK' as FilterType, label: '⚠️ Family', count: patients.filter(p => p.lastDecision.action === 'FAMILY_CHECK').length },
-          { key: 'MONITOR' as FilterType, label: '✅ Monitor', count: patients.filter(p => p.lastDecision.action === 'MONITOR').length },
-        ].map(f => (
-          <button key={f.key} onClick={() => setFilter(f.key)}
-            className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
-            style={{
-              background: filter === f.key ? 'var(--heart-text)' : 'var(--heart-surface)',
-              color: filter === f.key ? 'white' : 'var(--heart-text-secondary)',
-              border: `1px solid ${filter === f.key ? 'var(--heart-text)' : 'var(--heart-border)'}`,
-            }}>
-            {f.label} ({f.count})
-          </button>
-        ))}
-      </div>
-
-      {/* ── Kanban Grid ── */}
-      <div className={`grid gap-4 ${
-        viewMode === 'grid' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
-        viewMode === 'list' ? 'grid-cols-1 lg:grid-cols-2' :
-        'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5'
-      }`}>
-        {sorted.map(patient => (
-          <PatientWidget
-            key={patient.patientId}
-            patient={patient}
-            isExpanded={expandedId === patient.patientId}
-            onToggle={() => toggleExpand(patient.patientId)}
-          />
-        ))}
-      </div>
-
-      {sorted.length === 0 && (
-        <div className="text-center py-16" style={{ color: 'var(--heart-text-muted)' }}>No patients match your search.</div>
-      )}
-
-      {/* Click-away overlay for dropdowns */}
-      {(notifOpen || settingsOpen) && (
-        <div className="fixed inset-0 z-40" onClick={() => { setNotifOpen(false); setSettingsOpen(false); }} />
-      )}
-    </div>
-  );
+/* ── Mock emergency cases ── */
+interface EmergencyCase {
+  id: string;
+  name: string;
+  age: number;
+  gender: string;
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM';
+  source: string;
+  location: string;
+  timeAgo: string;
+  status: 'pending' | 'dispatched' | 'completed';
+  transcript: { role: 'operator' | 'caller'; text: string }[];
+  keywords: string[];
+  hr: number;
+  steps: number;
 }
 
-/* ── Patient Widget Card ── */
-function PatientWidget({ patient, isExpanded, onToggle }: {
-  patient: DashboardPatient;
-  isExpanded: boolean;
-  onToggle: () => void;
-}) {
-  const decision = patient.lastDecision;
-  const risk = getRiskColor(decision.riskScore);
-  const palette = widgetPalettes[risk];
-  const assignee = mockAssignees[patient.patientId] || { name: 'Unassigned', initials: 'UA', color: '#9ca3af' };
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
+const initialCases: EmergencyCase[] = [
+  {
+    id: 'CASE-873', name: 'Simulated Incoming Call', age: 36, gender: 'M', severity: 'CRITICAL',
+    source: '999 Call', location: 'Petaling Jaya, Selangor', timeAgo: 'Just now', status: 'pending',
+    transcript: [
+      { role: 'operator', text: '999 Emergency, what is your emergency?' },
+      { role: 'caller', text: 'Help! They just collapsed and are not breathing!' },
+    ],
+    keywords: ['Unresponsive', 'No Pulse Reported'], hr: 0, steps: 0,
+  },
+  {
+    id: 'CASE-872', name: 'John Doe', age: 68, gender: 'M', severity: 'HIGH',
+    source: 'AI App', location: 'Subang Jaya, Selangor (GPS verified)', timeAgo: '1m ago', status: 'pending',
+    transcript: [
+      { role: 'operator', text: 'HEART AI alert received. Can you describe your symptoms?' },
+      { role: 'caller', text: 'Chest pain... difficulty breathing for the last 30 minutes.' },
+    ],
+    keywords: ['Chest Pain', 'Dyspnea', 'Hypertension History'], hr: 142, steps: 200,
+  },
+  {
+    id: 'CASE-871', name: 'Siti Aminah', age: 34, gender: 'F', severity: 'CRITICAL',
+    source: '999 Call', location: 'Highway PLUS, KM 284 (Triangulation)', timeAgo: 'Just now', status: 'pending',
+    transcript: [
+      { role: 'operator', text: '999 Emergency, what is your emergency?' },
+      { role: 'caller', text: 'There\'s been a car accident on the highway! A woman is trapped!' },
+    ],
+    keywords: ['MVA', 'Entrapment', 'Blunt Trauma'], hr: 98, steps: 0,
+  },
+  {
+    id: 'CASE-870', name: 'Unknown Caller', age: 0, gender: 'M', severity: 'HIGH',
+    source: '999 Call', location: 'Georgetown, Penang', timeAgo: '3m ago', status: 'pending',
+    transcript: [
+      { role: 'operator', text: '999 Emergency, can you tell me what happened?' },
+      { role: 'caller', text: 'Someone here fainted... I don\'t know them...' },
+    ],
+    keywords: ['Syncope', 'Unknown Patient', 'Public Location'], hr: 0, steps: 0,
+  },
+  {
+    id: 'CASE-869', name: 'Lim Wei Jian', age: 52, gender: 'M', severity: 'MEDIUM',
+    source: 'AI App', location: 'Johor Bahru, Johor', timeAgo: '5m ago', status: 'pending',
+    transcript: [
+      { role: 'operator', text: 'HEART AI flagged elevated heart rate. Are you experiencing symptoms?' },
+      { role: 'caller', text: 'Feeling dizzy... heart racing for an hour now.' },
+    ],
+    keywords: ['Tachycardia', 'Dizziness', 'Palpitations'], hr: 130, steps: 1200,
+  },
+];
+
+/* ── Mock hospitals for allocation ── */
+const hospitals = [
+  { name: 'Subang Medical Center', edLoad: 74, beds: 28, queue: 0, eta: '8 min' },
+  { name: 'Hospital Kuala Lumpur', edLoad: 89, beds: 42, queue: 3, eta: '14 min' },
+  { name: 'Sunway Medical Centre', edLoad: 62, beds: 18, queue: 1, eta: '11 min' },
+];
+
+const sevColor = (s: string) => s === 'CRITICAL' ? { bg: '#fee2e2', color: '#dc2626', border: '#fecaca' } : s === 'HIGH' ? { bg: '#fff7ed', color: '#ea580c', border: '#fed7aa' } : { bg: '#fef3c7', color: '#ca8a04', border: '#fde68a' };
+
+export default function OperatorView() {
+  const [cases, setCases] = useState(initialCases);
+  const [selectedId, setSelectedId] = useState(initialCases[0].id);
   const [aiResult, setAiResult] = useState<AIDecision | null>(null);
-  const [noteOpen, setNoteOpen] = useState(false);
-  const [noteText, setNoteText] = useState('');
-  const [notes, setNotes] = useState<string[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [selectedHospital, setSelectedHospital] = useState(0);
+  const [showOverride, setShowOverride] = useState(false);
+  const [searchQ, setSearchQ] = useState('');
+
+  const selected = cases.find(c => c.id === selectedId) || cases[0];
+  const activeCases = cases.filter(c => c.status !== 'completed');
+
+  const simulateCall = () => {
+    const names = ['Ahmad bin Yusof', 'Priya a/p Rajan', 'Chen Li Hua', 'Abdul Karim', 'Nurul Aisyah'];
+    const locations = ['Shah Alam, Selangor', 'Ipoh, Perak', 'Kuching, Sarawak', 'Klang Valley', 'Penang Island'];
+    const sev: EmergencyCase['severity'][] = ['CRITICAL', 'HIGH', 'MEDIUM'];
+    const newCase: EmergencyCase = {
+      id: `CASE-${874 + cases.length}`,
+      name: names[Math.floor(Math.random() * names.length)],
+      age: 20 + Math.floor(Math.random() * 60),
+      gender: Math.random() > 0.5 ? 'M' : 'F',
+      severity: sev[Math.floor(Math.random() * sev.length)],
+      source: Math.random() > 0.5 ? '999 Call' : 'AI App',
+      location: locations[Math.floor(Math.random() * locations.length)],
+      timeAgo: 'Just now',
+      status: 'pending',
+      transcript: [
+        { role: 'operator', text: '999 Emergency, what is your emergency?' },
+        { role: 'caller', text: 'Please help! Someone needs medical attention urgently!' },
+      ],
+      keywords: ['Emergency', 'Urgent'],
+      hr: Math.floor(60 + Math.random() * 100),
+      steps: Math.floor(Math.random() * 3000),
+    };
+    setCases(prev => [newCase, ...prev]);
+    setSelectedId(newCase.id);
+    setAiResult(null);
+  };
 
   const runAI = async () => {
     setAiLoading(true);
-    const res = await getSnapshotDecision({
-      averageHeartRate: patient.keyMetrics.avgHeartRate,
-      dailySteps: patient.keyMetrics.avgSteps,
-      daysSinceLastCheckin: 1,
-      patientName: patient.patientName,
+    const result = await getSnapshotDecision({
+      averageHeartRate: selected.hr || 120,
+      dailySteps: selected.steps || 50,
+      daysSinceLastCheckin: 0,
+      patientName: selected.name,
+      medicalHistory: selected.keywords.join(', '),
     });
     setAiLoading(false);
-    if (res.success && res.decision) setAiResult(res.decision);
+    if (result.success && result.decision) setAiResult(result.decision);
   };
 
-  const addNote = () => {
-    if (noteText.trim()) {
-      setNotes(prev => [...prev, noteText.trim()]);
-      setNoteText('');
-      setNoteOpen(false);
-    }
+  const dispatch = () => {
+    setCases(prev => prev.map(c => c.id === selectedId ? { ...c, status: 'dispatched' as const } : c));
+    setAiResult(null);
   };
+
+  const markCompleted = () => {
+    setCases(prev => prev.map(c => c.id === selectedId ? { ...c, status: 'completed' as const } : c));
+    const next = cases.find(c => c.id !== selectedId && c.status === 'pending');
+    if (next) { setSelectedId(next.id); setAiResult(null); }
+  };
+
+  const sc = sevColor(selected.severity);
 
   return (
-    <div className="rounded-2xl overflow-hidden transition-all duration-200 hover:shadow-lg cursor-pointer relative"
-      onClick={onToggle}
-      style={{ background: palette.bg, border: `1px solid ${palette.border}` }}>
-
+    <div className="min-h-[calc(100vh-3.5rem)] p-5 lg:p-6">
       {/* Header */}
-      <div className="p-4 pb-2">
-        <div className="flex items-start justify-between mb-2">
-          <div>
-            <div className="text-xs font-bold" style={{ color: 'var(--heart-text)' }}>{patient.patientName}</div>
-            <div className="text-[10px] mt-0.5" style={{ color: 'var(--heart-text-muted)' }}>
-              {getActionEmoji(decision.action)} {decision.action.replace(/_/g, ' ')}
-            </div>
-          </div>
-          {/* More menu — functional */}
-          <div className="relative">
-            <button className="p-1 rounded-lg hover:bg-black/5"
-              onClick={e => { e.stopPropagation(); setMenuOpen(!menuOpen); }}>
-              <MoreHorizontal className="h-4 w-4" style={{ color: 'var(--heart-text-muted)' }} />
-            </button>
-            {menuOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={e => { e.stopPropagation(); setMenuOpen(false); }} />
-                <div className="absolute right-0 top-8 w-40 card p-1 z-50" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.15)' }}
-                  onClick={e => e.stopPropagation()}>
-                  {[
-                    { label: '📋 View Full Profile', action: () => alert(`Opening full profile for ${patient.patientName}`) },
-                    { label: '🔄 Re-run AI Analysis', action: runAI },
-                    { label: '📤 Export Report', action: () => alert(`Report exported for ${patient.patientName}`) },
-                    { label: '⚠️ Escalate Case', action: () => alert(`Case escalated for ${patient.patientName}`) },
-                  ].map(item => (
-                    <button key={item.label} onClick={() => { item.action(); setMenuOpen(false); }}
-                      className="w-full text-left px-3 py-2 rounded-lg text-[10px] hover:bg-gray-50 transition-all"
-                      style={{ color: 'var(--heart-text-secondary)' }}>
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <div className="text-[10px] tracking-widest font-medium" style={{ color: 'var(--heart-text-muted)' }}>Operator Command</div>
+          <h1 className="text-xl font-bold" style={{ color: 'var(--heart-text)' }}>999 Dispatch & Admin</h1>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--heart-text-secondary)' }}>Comprehensive monitoring and management system for real-time clinical workflows.</p>
         </div>
-
-        {/* Mini metric bars */}
-        <div className="space-y-1.5 my-3">
-          {[
-            { label: 'CV', value: decision.riskFactors.cardiovascularRisk, color: '#ef4444' },
-            { label: 'MOB', value: decision.riskFactors.mobilityRisk, color: '#3b82f6' },
-            { label: 'ENG', value: decision.riskFactors.engagementRisk, color: '#f59e0b' },
-          ].map(bar => (
-            <div key={bar.label} className="flex items-center gap-2">
-              <span className="text-[9px] w-7 font-medium" style={{ color: 'var(--heart-text-muted)' }}>{bar.label}</span>
-              <div className="flex-1 h-1.5 rounded-full" style={{ background: '#00000010' }}>
-                <div className="h-full rounded-full transition-all" style={{
-                  width: `${(bar.value / 10) * 100}%`,
-                  background: bar.value > 6 ? '#ef4444' : bar.value > 3 ? '#f59e0b' : '#10b981',
-                }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Footer — Assignee + Date */}
-      <div className="px-4 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
-            style={{ background: assignee.color }}>
-            {assignee.initials}
-          </div>
-          <span className="text-[10px]" style={{ color: 'var(--heart-text-secondary)' }}>{assignee.name}</span>
+          <button onClick={simulateCall} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white transition-all hover:scale-[1.02]" style={{ background: 'linear-gradient(135deg, #e74c5a, #d4404f)' }}>
+            <PhoneCall className="h-3.5 w-3.5" /> Simulate Call
+          </button>
+          <button className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold" style={{ background: 'var(--heart-surface)', color: 'var(--heart-text-secondary)', border: '1px solid var(--heart-border)' }}>
+            <Truck className="h-3.5 w-3.5" /> Live Dispatch
+          </button>
+          <button className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold" style={{ background: 'var(--heart-surface)', color: 'var(--heart-text-secondary)', border: '1px solid var(--heart-border)' }}>
+            <Building2 className="h-3.5 w-3.5" /> Facility Registration
+          </button>
+          <button className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold" style={{ background: 'var(--heart-surface)', color: 'var(--heart-text-secondary)', border: '1px solid var(--heart-border)' }}>
+            <Users className="h-3.5 w-3.5" /> Facility & Staff Directory
+          </button>
         </div>
-        <span className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>
-          {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-        </span>
       </div>
 
-      {/* ── Expanded Detail ── */}
-      {isExpanded && (
-        <div className="px-4 pb-4 pt-2 space-y-3" style={{ borderTop: `1px solid ${palette.border}` }} onClick={e => e.stopPropagation()}>
-          {/* Key Metrics */}
-          <div className="grid grid-cols-3 gap-2">
-            <MiniMetric icon={<Heart className="h-3 w-3" />} label="HR" value={`${patient.keyMetrics.avgHeartRate}`} unit="bpm" />
-            <MiniMetric icon={<Footprints className="h-3 w-3" />} label="Steps" value={`${patient.keyMetrics.avgSteps.toLocaleString()}`} unit="" />
-            <MiniMetric icon={<Activity className="h-3 w-3" />} label="Check" value={`${patient.keyMetrics.checkInResponse}%`} unit="" />
+      <div className="flex gap-5">
+        {/* ═══ LEFT: Active Emergencies ═══ */}
+        <div className="w-[340px] flex-none space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold" style={{ color: 'var(--heart-text)' }}>Active Emergencies</h2>
+            <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg" style={{ background: '#fee2e2', color: '#dc2626' }}>{activeCases.length} Active</span>
           </div>
 
-          {/* Risk Breakdown */}
-          <div className="p-2.5 rounded-xl" style={{ background: 'white' }}>
-            <div className="text-[10px] font-bold mb-1.5 flex items-center gap-1" style={{ color: 'var(--heart-text-muted)' }}>
-              <Target className="h-3 w-3" /> Risk Breakdown
+          {/* Search */}
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'var(--heart-surface)', border: '1px solid var(--heart-border-light)' }}>
+            <Search className="h-3.5 w-3.5" style={{ color: 'var(--heart-text-muted)' }} />
+            <input type="text" value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="Search emergencies..." className="bg-transparent outline-none text-xs w-full" style={{ color: 'var(--heart-text)' }} />
+          </div>
+
+          {/* Emergency Cards */}
+          <div className="space-y-2 max-h-[calc(100vh-14rem)] overflow-y-auto pr-1">
+            {cases.filter(c => c.name.toLowerCase().includes(searchQ.toLowerCase())).map(c => {
+              const cs = sevColor(c.severity);
+              const isSelected = selectedId === c.id;
+              return (
+                <button key={c.id} onClick={() => { setSelectedId(c.id); setAiResult(null); }}
+                  className="w-full text-left card p-3.5 transition-all hover:scale-[1.005]"
+                  style={{
+                    background: isSelected ? cs.bg : 'var(--heart-surface)',
+                    borderLeft: `3px solid ${isSelected ? cs.color : 'transparent'}`,
+                    opacity: c.status === 'completed' ? 0.5 : 1,
+                  }}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded" style={{ background: cs.bg, color: cs.color, border: `1px solid ${cs.border}` }}>{c.severity}</span>
+                    <span className="text-[9px]" style={{ color: 'var(--heart-text-muted)' }}>{c.timeAgo}</span>
+                  </div>
+                  <div className="text-sm font-bold" style={{ color: 'var(--heart-text)' }}>
+                    {c.name} {c.age > 0 ? `(${c.age}, ${c.gender})` : ''}
+                  </div>
+                  <div className="flex items-center gap-1 mt-1">
+                    <span className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>{c.source} • {c.location}</span>
+                  </div>
+                  {c.status === 'dispatched' && <div className="flex items-center gap-1 mt-1.5 text-[10px] font-bold" style={{ color: '#16a34a' }}><Truck className="h-3 w-3" /> Dispatched</div>}
+                  {c.status === 'completed' && <div className="flex items-center gap-1 mt-1.5 text-[10px] font-bold" style={{ color: '#6b7280' }}><CheckCircle className="h-3 w-3" /> Completed</div>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ═══ RIGHT: Call Log + AI Analysis ═══ */}
+        <div className="flex-1 space-y-4">
+          {/* Call Log Header */}
+          <div className="card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-sm font-bold" style={{ color: 'var(--heart-text)' }}>999 Call Log & AI Analysis</h2>
+                <div className="text-[10px] mt-0.5" style={{ color: 'var(--heart-text-muted)' }}>ID: {selected.id}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg" style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>{selected.severity}</span>
+                {selected.status === 'pending' && <button onClick={markCompleted} className="text-[10px] font-semibold px-2.5 py-1 rounded-lg" style={{ background: '#dcfce7', color: '#16a34a' }}>Mark Completed</button>}
+              </div>
             </div>
-            {[
-              { label: 'Cardiovascular', value: decision.riskFactors.cardiovascularRisk },
-              { label: 'Mobility', value: decision.riskFactors.mobilityRisk },
-              { label: 'Engagement', value: decision.riskFactors.engagementRisk },
-              { label: 'Social', value: decision.riskFactors.socialRisk },
-            ].map(f => (
-              <div key={f.label} className="flex items-center gap-1.5 mb-1">
-                <span className="text-[9px] w-20" style={{ color: 'var(--heart-text-muted)' }}>{f.label}</span>
-                <div className="flex-1 h-1 rounded-full" style={{ background: '#e5e7eb' }}>
-                  <div className="h-full rounded-full" style={{
-                    width: `${(f.value / 10) * 100}%`,
-                    background: f.value > 7 ? '#ef4444' : f.value > 4 ? '#f59e0b' : '#10b981',
-                  }} />
+
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold" style={{ background: sc.bg, color: sc.color }}>{selected.name.charAt(0)}</div>
+              <div>
+                <div className="text-sm font-bold" style={{ color: 'var(--heart-text)' }}>{selected.name} {selected.age > 0 ? `(${selected.age}, ${selected.gender})` : ''}</div>
+                <div className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--heart-text-muted)' }}><MapPin className="h-3 w-3" /> {selected.location}</div>
+              </div>
+            </div>
+
+            {/* Transcription */}
+            <div className="text-[10px] font-bold mb-2" style={{ color: 'var(--heart-text-muted)' }}>Automated Transcription</div>
+            <div className="space-y-2 p-3 rounded-xl" style={{ background: 'var(--heart-bg)' }}>
+              {selected.transcript.map((t, i) => (
+                <div key={i} className="flex gap-2">
+                  <span className="text-[10px] font-bold flex-none w-16 pt-0.5" style={{ color: t.role === 'operator' ? '#3b82f6' : '#ef4444' }}>{t.role === 'operator' ? 'Operator' : 'Caller'}</span>
+                  <span className="text-xs leading-relaxed" style={{ color: 'var(--heart-text)' }}>{t.text}</span>
                 </div>
-                <span className="text-[9px] w-5 text-right font-medium" style={{ color: 'var(--heart-text-secondary)' }}>{f.value}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* AI Reasoning */}
-          <div className="p-2.5 rounded-xl" style={{ background: 'white' }}>
-            <div className="text-[10px] font-bold mb-1 flex items-center justify-between">
-              <span className="flex items-center gap-1" style={{ color: 'var(--heart-text-muted)' }}>
-                <Brain className="h-3 w-3" style={{ color: '#8b5cf6' }} /> AI Reasoning
-              </span>
-              <button onClick={runAI} disabled={aiLoading}
-                className="flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded"
-                style={{ background: '#f0f9ff', color: '#3b82f6' }}>
-                <RefreshCw className={`h-2.5 w-2.5 ${aiLoading ? 'animate-spin' : ''}`} />
-                {aiLoading ? 'Analyzing...' : 'Re-run AI'}
-              </button>
-            </div>
-            <p className="text-[10px] leading-relaxed" style={{ color: 'var(--heart-text-secondary)' }}>
-              {(aiResult?.reasoning?.en || decision.reasoning.en).slice(0, 200)}
-              {(aiResult?.reasoning?.en || decision.reasoning.en).length > 200 ? '...' : ''}
-            </p>
-            {aiResult && (
-              <div className="mt-1 flex items-center gap-2 text-[9px]" style={{ color: '#8b5cf6' }}>
-                ✦ Live Gemini result • Risk: {aiResult.riskScore}/10 • Action: {aiResult.action}
-              </div>
-            )}
-          </div>
-
-          {/* Notes */}
-          {notes.length > 0 && (
-            <div className="p-2 rounded-xl space-y-1" style={{ background: 'white' }}>
-              <div className="text-[9px] font-bold" style={{ color: 'var(--heart-text-muted)' }}>📝 Notes</div>
-              {notes.map((n, i) => (
-                <div key={i} className="text-[10px] px-2 py-1 rounded" style={{ background: '#fef3c7', color: '#92400e' }}>{n}</div>
               ))}
             </div>
-          )}
-
-          {/* Note input */}
-          {noteOpen && (
-            <div className="flex items-center gap-2">
-              <input type="text" value={noteText} onChange={e => setNoteText(e.target.value)}
-                placeholder="Add a note..." autoFocus onKeyDown={e => e.key === 'Enter' && addNote()}
-                className="flex-1 text-[10px] px-2 py-1.5 rounded-lg outline-none"
-                style={{ background: 'white', border: '1px solid var(--heart-border)', color: 'var(--heart-text)' }} />
-              <button onClick={addNote} className="text-[9px] font-bold px-2 py-1.5 rounded-lg"
-                style={{ background: '#1e293b', color: 'white' }}>Save</button>
-            </div>
-          )}
-
-          {/* Trend */}
-          <div className="flex items-center gap-2 text-[10px]" style={{ color: 'var(--heart-text-secondary)' }}>
-            {patient.riskTrend === 'declining' && <><TrendingDown className="h-3 w-3" style={{ color: '#ef4444' }} /> Declining</>}
-            {patient.riskTrend === 'improving' && <><TrendingUp className="h-3 w-3" style={{ color: '#10b981' }} /> Improving</>}
-            {patient.riskTrend === 'stable' && <><Minus className="h-3 w-3" /> Stable</>}
-            {patient.riskTrend === 'critical' && <><TrendingDown className="h-3 w-3" style={{ color: '#dc2626' }} /> Critical</>}
-            <span className="ml-auto">Conf: {decision.confidencePercent}%</span>
           </div>
 
-          {/* Quick Actions — all functional */}
-          <div className="flex items-center gap-2 pt-1">
-            {Object.entries(patient.whatsappDeepLinks).slice(0, 1).map(([idx, link]) => (
-              <a key={idx} href={link} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg"
-                style={{ background: '#dcfce7', color: '#16a34a' }} onClick={e => e.stopPropagation()}>
-                <MessageSquare className="h-3 w-3" /> WhatsApp
-              </a>
-            ))}
-            {decision.action === 'CALL_999' && (
-              <a href="tel:999" className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg"
-                style={{ background: '#fee2e2', color: '#dc2626' }} onClick={e => e.stopPropagation()}>
-                <Phone className="h-3 w-3" /> 999
-              </a>
-            )}
-            <div className="flex-1" />
-            <div className="flex items-center gap-1">
-              {/* Add note button */}
-              <button onClick={() => setNoteOpen(!noteOpen)} title="Add note"
-                className="p-1.5 rounded-lg hover:bg-black/5">
-                <MessageCircle className="h-3 w-3" style={{ color: noteOpen ? '#3b82f6' : 'var(--heart-text-muted)' }} />
-              </button>
-              {/* Alert button */}
-              <button onClick={() => alert(`Alert sent for ${patient.patientName}`)} title="Send alert"
-                className="p-1.5 rounded-lg hover:bg-black/5">
-                <Bell className="h-3 w-3" style={{ color: 'var(--heart-text-muted)' }} />
-              </button>
-              {/* Schedule button */}
-              <button onClick={() => alert(`Scheduling follow-up for ${patient.patientName}`)} title="Schedule follow-up"
-                className="p-1.5 rounded-lg hover:bg-black/5">
-                <Clock className="h-3 w-3" style={{ color: 'var(--heart-text-muted)' }} />
-              </button>
+          {/* AI Insights Dashboard */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="card p-4">
+              <div className="text-[10px] font-bold mb-1" style={{ color: 'var(--heart-text-muted)' }}>Severity</div>
+              <div className="text-lg font-black px-3 py-1 rounded-lg inline-block" style={{ background: sc.bg, color: sc.color }}>{selected.severity}</div>
             </div>
-          </div>
-
-          {/* Referenced Guidelines */}
-          {decision.referencedGuidelines.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {decision.referencedGuidelines.slice(0, 2).map(g => (
-                <span key={g} className="text-[8px] px-1.5 py-0.5 rounded" style={{ background: '#e0f2fe', color: '#0284c7' }}>
-                  {g}
+            <div className="card p-4">
+              <div className="text-[10px] font-bold mb-1" style={{ color: 'var(--heart-text-muted)' }}>AI Confidence</div>
+              <div className="text-lg font-black" style={{ color: 'var(--heart-text)' }}>{aiResult ? `${aiResult.confidencePercent}%` : '—'}</div>
+            </div>
+            <div className="card p-4">
+              <div className="text-[10px] font-bold mb-1" style={{ color: 'var(--heart-text-muted)' }}>Status</div>
+              <div className="flex items-center gap-1.5">
+                <div className={`w-2 h-2 rounded-full ${selected.status === 'pending' ? 'bg-amber-400 animate-pulse' : selected.status === 'dispatched' ? 'bg-green-500' : 'bg-gray-400'}`} />
+                <span className="text-xs font-bold" style={{ color: 'var(--heart-text)' }}>
+                  {selected.status === 'pending' ? 'Pending Dispatch' : selected.status === 'dispatched' ? 'Dispatched' : 'Completed'}
                 </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Keywords */}
+          <div className="card p-4">
+            <div className="text-[10px] font-bold mb-2" style={{ color: 'var(--heart-text-muted)' }}>Detected Keywords / Symptoms</div>
+            <div className="flex flex-wrap gap-1.5">
+              {selected.keywords.map(k => (
+                <span key={k} className="text-[10px] font-semibold px-2.5 py-1 rounded-lg" style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>{k}</span>
               ))}
+            </div>
+            {selected.severity === 'CRITICAL' && (
+              <div className="mt-3 p-2.5 rounded-lg text-xs font-semibold" style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>
+                <span className="font-black">Highlight:</span> Cardiac Arrest Simulation — Dispatch Advanced Life Support (ALS) Immediately.
+              </div>
+            )}
+          </div>
+
+          {/* Run AI or Show Result */}
+          {!aiResult && !aiLoading && selected.status === 'pending' && (
+            <button onClick={runAI} className="w-full py-3 rounded-xl text-xs font-bold text-white transition-all hover:scale-[1.005]" style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+              🤖 Run AI Hospital Allocation
+            </button>
+          )}
+          {aiLoading && (
+            <div className="card p-6 flex items-center justify-center gap-3">
+              <div className="w-5 h-5 rounded-full border-2 border-slate-300 border-t-slate-800 animate-spin" />
+              <span className="text-xs font-semibold" style={{ color: 'var(--heart-text-muted)' }}>HEART AI analyzing case & allocating hospital...</span>
+            </div>
+          )}
+
+          {/* AI Hospital Allocation Result */}
+          {aiResult && (
+            <div className="card p-5 space-y-4" style={{ border: '1px solid #bbf7d0' }}>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#dcfce7' }}><CheckCircle className="h-4 w-4" style={{ color: '#16a34a' }} /></div>
+                <div>
+                  <div className="text-sm font-bold" style={{ color: '#16a34a' }}>AI Hospital Allocation</div>
+                  <div className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>Optimal Path Found</div>
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--heart-text-secondary)' }}>
+                Analysed location, severity, and real-time directory metrics (ED Load, Capacity, Active Queues). HEART AI recommends:
+              </p>
+
+              {/* AI Metrics */}
+              <div className="grid grid-cols-4 gap-3">
+                <div className="p-2.5 rounded-lg text-center" style={{ background: 'var(--heart-bg)' }}>
+                  <div className="text-[9px]" style={{ color: 'var(--heart-text-muted)' }}>Dispatch support</div>
+                  <div className="text-xs font-bold mt-0.5" style={{ color: 'var(--heart-text)' }}>Case Prioritisation</div>
+                  <div className="text-[10px] font-bold mt-0.5" style={{ color: sc.color }}>{selected.severity === 'CRITICAL' ? 'Critical' : selected.severity === 'HIGH' ? 'Urgent' : 'Standard'}</div>
+                </div>
+                <div className="p-2.5 rounded-lg text-center" style={{ background: 'var(--heart-bg)' }}>
+                  <div className="text-[9px]" style={{ color: 'var(--heart-text-muted)' }}>Suggested dispatch action</div>
+                  <div className="text-xs font-bold mt-0.5" style={{ color: 'var(--heart-text)' }}>Prioritise emergency dispatch</div>
+                </div>
+                <div className="p-2.5 rounded-lg text-center" style={{ background: 'var(--heart-bg)' }}>
+                  <div className="text-[9px]" style={{ color: 'var(--heart-text-muted)' }}>Risk score</div>
+                  <div className="text-2xl font-black" style={{ color: 'var(--heart-text)' }}>{aiResult.riskScore}</div>
+                </div>
+                <div className="p-2.5 rounded-lg text-center" style={{ background: 'var(--heart-bg)' }}>
+                  <div className="text-[9px]" style={{ color: 'var(--heart-text-muted)' }}>Confidence</div>
+                  <div className="text-2xl font-black" style={{ color: 'var(--heart-text)' }}>{aiResult.confidencePercent}%</div>
+                </div>
+              </div>
+
+              {/* Decision trace */}
+              <div className="flex items-center gap-2 text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>
+                <div className="flex items-center gap-1"><Radio className="h-3 w-3" /> Decision trace</div>
+                <div className="flex items-center gap-1"><Wifi className="h-3 w-3" /> Vertex connected</div>
+              </div>
+
+              {/* Hospital Selection */}
+              <div className="space-y-2">
+                {hospitals.map((h, i) => (
+                  <button key={h.name} onClick={() => setSelectedHospital(i)}
+                    className="w-full flex items-center justify-between p-3 rounded-xl text-left transition-all"
+                    style={{
+                      background: selectedHospital === i ? '#f0fdf4' : 'var(--heart-surface)',
+                      border: `1px solid ${selectedHospital === i ? '#86efac' : 'var(--heart-border-light)'}`,
+                    }}>
+                    <div className="flex items-center gap-3">
+                      <Building2 className="h-4 w-4" style={{ color: selectedHospital === i ? '#16a34a' : 'var(--heart-text-muted)' }} />
+                      <div>
+                        <div className="text-xs font-bold" style={{ color: 'var(--heart-text)' }}>{h.name}</div>
+                        <div className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>ED Load: {h.edLoad}% • {h.beds} Beds • Queue: {h.queue}</div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-semibold" style={{ color: 'var(--heart-text-muted)' }}>ETA {h.eta}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Dispatch Buttons */}
+              <div className="flex items-center gap-3">
+                <button onClick={dispatch}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold text-white transition-all hover:scale-[1.01]"
+                  style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)' }}>
+                  <CheckCircle className="h-4 w-4" /> Approve & Dispatch
+                </button>
+                <button onClick={() => setShowOverride(!showOverride)}
+                  className="flex items-center gap-1.5 px-4 py-3 rounded-xl text-xs font-semibold transition-all"
+                  style={{ background: 'var(--heart-bg)', color: 'var(--heart-text-secondary)', border: '1px solid var(--heart-border)' }}>
+                  Override / Change Facility <ChevronDown className="h-3 w-3" />
+                </button>
+              </div>
+              {showOverride && (
+                <div className="p-3 rounded-xl text-xs" style={{ background: '#ffe4e6', color: '#be123c', border: '1px solid #fecdd3' }}>
+                  <span className="font-bold">Override Mode:</span> Select a different hospital above, then click "Approve & Dispatch" to override AI recommendation.
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
-    </div>
-  );
-}
-
-/* ── Mini Metric Tile ── */
-function MiniMetric({ icon, label, value, unit }: { icon: React.ReactNode; label: string; value: string; unit: string }) {
-  return (
-    <div className="p-2 rounded-xl text-center" style={{ background: 'white' }}>
-      <div className="flex items-center justify-center gap-1 mb-0.5 [&>svg]:text-[var(--heart-text-muted)]">{icon}</div>
-      <div className="text-sm font-bold" style={{ color: 'var(--heart-text)' }}>{value}</div>
-      <div className="text-[9px]" style={{ color: 'var(--heart-text-muted)' }}>{label}{unit ? ` ${unit}` : ''}</div>
+      </div>
     </div>
   );
 }
