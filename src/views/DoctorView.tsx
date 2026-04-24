@@ -4,12 +4,12 @@
  * All buttons and interactions are functional.
  */
 
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Activity, Shield, FileText, AlertTriangle, Eye,
   Stethoscope, CheckSquare, Square, Siren, Search,
   Plus, Download, Printer, Phone, Mail, MapPin, Calendar,
-  User, Heart, Clock, X, Edit3,
+  User, Heart, Clock, X, Edit3, ChevronRight,
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, ResponsiveContainer,
@@ -17,6 +17,7 @@ import {
 } from 'recharts';
 import { getMockDashboardPatients } from '../mock-data';
 import { getRiskColor, type DashboardPatient } from '../types';
+import './DoctorView.css';
 
 /* ── Extended patient data (Evergreen-style) ── */
 interface PatientProfile {
@@ -219,49 +220,45 @@ export default function DoctorView() {
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)]">
       {/* ── Left: Patient List Sidebar ── */}
-      <div className="w-[240px] flex-none flex flex-col py-4 px-3 overflow-y-auto max-h-[calc(100vh-3.5rem)]"
-        style={{ background: 'var(--heart-surface)', borderRight: '1px solid var(--heart-border-light)' }}>
+      <div className="w-[260px] flex-none flex flex-col py-6 px-4 overflow-y-auto max-h-[calc(100vh-3.5rem)] doctor-sidebar">
         {/* Doctor Info */}
-        <div className="flex items-center gap-2 px-2 mb-4">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-            style={{ background: '#fde8e8', color: '#e74c5a' }}>SJ</div>
+        <div className="flex items-center gap-3 px-2 mb-6">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm"
+            style={{ background: 'linear-gradient(135deg, #fdedef, #fce7f3)', color: '#e74c5a', border: '1px solid #fecaca' }}>SJ</div>
           <div>
-            <div className="text-xs font-bold" style={{ color: 'var(--heart-text)' }}>Dr. Sarah Jenkins</div>
-            <div className="text-[9px] flex items-center gap-1" style={{ color: '#10b981' }}>● Online</div>
+            <div className="text-xs font-black tracking-tight" style={{ color: 'var(--heart-text)' }}>Dr. Sarah Jenkins</div>
+            <div className="text-[10px] flex items-center gap-1.5 font-semibold" style={{ color: '#10b981' }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" /> Online
+            </div>
           </div>
         </div>
-
+        
         {/* Search */}
-        <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg mb-3"
-          style={{ background: 'var(--heart-bg)', border: '1px solid var(--heart-border-light)' }}>
-          <Search className="h-3.5 w-3.5" style={{ color: 'var(--heart-text-muted)' }} />
+        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl mb-6 sidebar-search border border-transparent focus-within:border-emerald-200 transition-all shadow-sm">
+          <Search className="h-4 w-4" style={{ color: 'var(--heart-text-muted)' }} />
           <input type="text" placeholder="Search patients..."
             value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-            className="bg-transparent outline-none text-xs w-full" style={{ color: 'var(--heart-text)' }} />
+            className="bg-transparent outline-none text-xs w-full font-medium" style={{ color: 'var(--heart-text)' }} />
         </div>
 
-        <div className="text-[9px] font-bold tracking-wider px-2 mb-2" style={{ color: 'var(--heart-text-muted)' }}>
-          MY PATIENTS ({filteredPatients.length})
+        <div className="text-[10px] font-black tracking-[0.1em] px-2 mb-3 text-slate-400 uppercase">
+          My Patients ({filteredPatients.length})
         </div>
 
         {/* Patient List */}
-        <div className="space-y-1 flex-1">
+        <div className="space-y-1.5 flex-1">
           {filteredPatients.map(p => {
             const isActive = selectedId === p.id;
             return (
               <button key={p.id} onClick={() => setSelectedId(p.id)}
-                className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-left transition-all"
-                style={{
-                  background: isActive ? '#f0fdf4' : 'transparent',
-                  border: isActive ? '1px solid #bbf7d0' : '1px solid transparent',
-                }}>
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-none"
-                  style={{ background: isActive ? '#dcfce7' : '#f1f5f9', color: isActive ? '#16a34a' : '#64748b' }}>
+                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left doctor-patient-btn ${isActive ? 'active' : ''}`}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-none shadow-sm transition-transform"
+                  style={{ background: isActive ? 'linear-gradient(135deg, #dcfce7, #bbf7d0)' : '#f1f5f9', color: isActive ? '#15803d' : '#64748b' }}>
                   {p.photo}
                 </div>
                 <div className="min-w-0">
-                  <div className="text-xs font-semibold truncate" style={{ color: isActive ? '#059669' : 'var(--heart-text)' }}>{p.name}</div>
-                  <div className="text-[9px]" style={{ color: 'var(--heart-text-muted)' }}>{p.age} y.o. • {p.gender}</div>
+                  <div className="text-xs font-bold truncate" style={{ color: isActive ? '#15803d' : 'var(--heart-text)' }}>{p.name}</div>
+                  <div className="text-[10px] font-medium opacity-70" style={{ color: 'var(--heart-text-muted)' }}>{p.age} y.o. • {p.gender}</div>
                 </div>
               </button>
             );
@@ -269,72 +266,84 @@ export default function DoctorView() {
         </div>
 
         {/* Add Patient */}
-        <button className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold mt-3 transition-all hover:scale-[1.01]"
-          style={{ border: '1px dashed var(--heart-border)', color: 'var(--heart-text-muted)' }}
+        <button className="w-full flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-xs font-bold mt-4 transition-all hover:bg-slate-50 border-2 border-dashed border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300"
           onClick={() => setAddPatientOpen(true)}>
-          <Plus className="h-3.5 w-3.5" /> Add Patient
+          <Plus className="h-4 w-4" /> Add Patient
         </button>
       </div>
 
       {/* ── Main Content ── */}
-      <div className="flex-1 p-6 overflow-y-auto max-h-[calc(100vh-3.5rem)]" style={{ background: 'var(--heart-bg)' }}>
+      <div key={patient.id} className="flex-1 p-8 overflow-y-auto max-h-[calc(100vh-3.5rem)] animate-slide-in" style={{ background: 'var(--heart-bg)' }}>
         {/* Top bar */}
-        <div className="flex items-center justify-between mb-5">
-          <h1 className="text-xl font-bold" style={{ color: 'var(--heart-text)' }}>Patient</h1>
-          <div className="flex items-center gap-2">
-            <button onClick={() => window.print()} className="p-2 rounded-lg" style={{ background: 'var(--heart-surface)', border: '1px solid var(--heart-border-light)' }}>
-              <Printer className="h-4 w-4" style={{ color: 'var(--heart-text-muted)' }} />
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-black tracking-tight" style={{ color: 'var(--heart-text)' }}>Patient Profile</h1>
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">EMHR Digital Record</div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={() => window.print()} className="p-2.5 rounded-xl transition-all hover:bg-slate-50" style={{ background: 'var(--heart-surface)', border: '1px solid var(--heart-border-light)', boxShadow: 'var(--heart-shadow)' }}>
+              <Printer className="h-4 w-4" style={{ color: 'var(--heart-text-secondary)' }} />
             </button>
-            <button onClick={() => alert('Patient report downloaded')} className="p-2 rounded-lg" style={{ background: 'var(--heart-surface)', border: '1px solid var(--heart-border-light)' }}>
-              <Download className="h-4 w-4" style={{ color: 'var(--heart-text-muted)' }} />
+            <button onClick={() => alert('Patient report downloaded')} className="p-2.5 rounded-xl transition-all hover:bg-slate-50" style={{ background: 'var(--heart-surface)', border: '1px solid var(--heart-border-light)', boxShadow: 'var(--heart-shadow)' }}>
+              <Download className="h-4 w-4" style={{ color: 'var(--heart-text-secondary)' }} />
+            </button>
+            <button className="btn-primary flex items-center gap-2 py-2.5 px-5">
+              <Plus className="h-4 w-4" /> Action
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* ── Left 2 cols: Patient Info + History + Appointments + Documents ── */}
-          <div className="xl:col-span-2 space-y-5">
+          <div className="xl:col-span-2 space-y-6">
             {/* Patient Information Card */}
-            <div className="card p-5">
-              <h2 className="text-sm font-bold mb-4" style={{ color: 'var(--heart-text)' }}>Patient Information</h2>
-              <div className="flex gap-5">
-                {/* Photo */}
-                <div className="w-28 h-28 rounded-2xl flex items-center justify-center text-3xl font-black flex-none"
-                  style={{ background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', color: '#059669' }}>
-                  {patient.photo}
+            <div className="card p-6 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full opacity-50 -mr-10 -mt-10" />
+              
+              <div className="flex flex-col md:flex-row gap-8 relative z-10">
+                {/* Photo Container */}
+                <div className="flex-none">
+                  <div className="w-32 h-32 rounded-3xl flex items-center justify-center text-4xl font-black profile-photo-container"
+                    style={{ background: 'linear-gradient(135deg, #f0fdf4, #bbf7d0)', color: '#15803d' }}>
+                    {patient.photo}
+                  </div>
+                  <div className="mt-4 text-center md:text-left">
+                    <div className="text-base font-black text-slate-800">{patient.name}</div>
+                    <div className="text-[11px] font-bold text-slate-400 mt-0.5 uppercase tracking-wide">ID: {patient.ic}</div>
+                  </div>
                 </div>
+
                 {/* Details grid */}
-                <div className="flex-1 grid grid-cols-2 gap-x-8 gap-y-3">
-                  <InfoRow icon={<User className="h-3.5 w-3.5" />} label="Gender" value={patient.gender} />
-                  <InfoRow icon={<Phone className="h-3.5 w-3.5" />} label="Phone Number" value={patient.phone} />
-                  <InfoRow icon={<Calendar className="h-3.5 w-3.5" />} label="Age" value={`${patient.age} y.o`} />
-                  <InfoRow icon={<Mail className="h-3.5 w-3.5" />} label="Email" value={patient.email} />
-                  <InfoRow icon={<Clock className="h-3.5 w-3.5" />} label="Date of Birth" value={patient.dob} />
-                  <InfoRow icon={<MapPin className="h-3.5 w-3.5" />} label="Address" value={patient.address} />
+                <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-5">
+                  <InfoRow icon={<User />} label="Gender" value={patient.gender} />
+                  <InfoRow icon={<Phone />} label="Phone Number" value={patient.phone} />
+                  <InfoRow icon={<Calendar />} label="Age" value={`${patient.age} Years Old`} />
+                  <InfoRow icon={<Mail />} label="Email Address" value={patient.email} />
+                  <InfoRow icon={<Clock />} label="Date of Birth" value={patient.dob} />
+                  <InfoRow icon={<MapPin />} label="Residential Address" value={patient.address} />
                 </div>
               </div>
-              <div className="text-sm font-bold mt-3" style={{ color: 'var(--heart-text)' }}>{patient.name}</div>
-              <div className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>IC: {patient.ic}</div>
             </div>
 
             {/* Medical History */}
             <div>
-              <h2 className="text-sm font-bold mb-3" style={{ color: 'var(--heart-text)' }}>Medical History</h2>
-              <div className="grid grid-cols-3 gap-3">
-                {patient.medicalHistory.map(h => (
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-black tracking-tight" style={{ color: 'var(--heart-text)' }}>Medical History</h2>
+                <button className="text-[10px] font-bold text-emerald-600 hover:underline">View Clinical Details</button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {patient.medicalHistory.map((h, i) => (
                   <button key={h.name} onClick={() => setShowHistory(showHistory === h.name ? null : h.name)}
-                    className="card p-4 text-left transition-all hover:scale-[1.01]"
-                    style={{ border: showHistory === h.name ? '1px solid #10b981' : undefined }}>
-                    <div className="flex items-center gap-2 mb-1.5">
+                    className={`medical-history-card card p-5 text-left border-2 border-transparent transition-all ${showHistory === h.name ? 'active' : ''}`}>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 shadow-sm" style={{ background: 'var(--heart-bg)' }}>
                       <span className="text-xl">{h.icon}</span>
-                      <span className="text-xs font-bold" style={{ color: 'var(--heart-text)' }}>{h.name}</span>
                     </div>
-                    <p className="text-[10px] leading-relaxed" style={{ color: 'var(--heart-text-muted)' }}>{h.desc}</p>
+                    <div className="text-xs font-black mb-1" style={{ color: 'var(--heart-text)' }}>{h.name}</div>
+                    <p className="text-[10px] font-medium leading-relaxed" style={{ color: 'var(--heart-text-muted)' }}>{h.desc}</p>
                     {showHistory === h.name && (
-                      <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--heart-border-light)' }}>
-                        <div className="text-[10px] font-semibold" style={{ color: '#059669' }}>
-                          ✓ Viewing detailed history...
-                        </div>
+                      <div className="mt-3 pt-3 flex items-center gap-1.5" style={{ borderTop: '1px solid var(--heart-border-light)' }}>
+                        <div className="w-1 h-1 rounded-full bg-emerald-500" />
+                        <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#059669' }}>Active Monitoring</div>
                       </div>
                     )}
                   </button>
@@ -343,43 +352,54 @@ export default function DoctorView() {
             </div>
 
             {/* Appointments + Documents */}
-            <div className="grid grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Appointments */}
-              <div className="card p-4">
-                <h3 className="text-sm font-bold mb-3" style={{ color: 'var(--heart-text)' }}>Appointments</h3>
-                <div className="space-y-3">
+              <div className="card p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-sm font-black tracking-tight" style={{ color: 'var(--heart-text)' }}>Clinical Appointments</h3>
+                  <Calendar className="h-4 w-4 text-slate-300" />
+                </div>
+                <div className="space-y-4">
                   {patient.appointments.map((a, i) => (
-                    <button key={i} className="flex items-start gap-2.5 w-full text-left"
+                    <button key={i} className="appointment-item flex items-center gap-4 w-full text-left p-1"
                       onClick={() => alert(`${a.done ? 'Reviewing' : 'Scheduling'}: ${a.name}\nDate: ${a.date}\nDoctor: ${a.doctor}`)}>
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center mt-0.5 text-xs font-bold flex-none"
-                        style={{ background: a.done ? '#dcfce7' : '#fee2e2', color: a.done ? '#16a34a' : '#dc2626' }}>
-                        {a.done ? '✓' : '!'}
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-none shadow-sm"
+                        style={{ background: a.done ? '#ecfdf5' : '#fff1f2', border: `1px solid ${a.done ? '#bbf7d0' : '#fecaca'}` }}>
+                        {a.done ? <CheckSquare className="h-4 w-4 text-emerald-600" /> : <Clock className="h-4 w-4 text-rose-500" />}
                       </div>
-                      <div>
-                        <div className="text-xs font-bold" style={{ color: a.done ? 'var(--heart-text)' : '#dc2626' }}>{a.name}</div>
-                        <div className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>{a.date}</div>
-                        <div className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>{a.doctor}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold truncate" style={{ color: a.done ? 'var(--heart-text)' : '#e11d48' }}>{a.name}</div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] font-bold text-slate-400">{a.date}</span>
+                          <span className="text-[10px] font-black text-slate-300">•</span>
+                          <span className="text-[10px] font-bold text-slate-400">{a.doctor}</span>
+                        </div>
                       </div>
+                      <ChevronRight className="h-3 w-3 text-slate-300 flex-none" />
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* Document Agreement */}
-              <div className="card p-4">
-                <h3 className="text-sm font-bold mb-3" style={{ color: 'var(--heart-text)' }}>Document Agreement</h3>
-                <div className="space-y-3">
+              <div className="card p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-sm font-black tracking-tight" style={{ color: 'var(--heart-text)' }}>Legal & Consent</h3>
+                  <FileText className="h-4 w-4 text-slate-300" />
+                </div>
+                <div className="space-y-4">
                   {patient.documents.map((d, i) => (
-                    <button key={i} className="flex items-center gap-2.5 w-full text-left hover:bg-gray-50 rounded-lg p-1 -m-1 transition-all"
+                    <button key={i} className="doc-agreement-item flex items-center gap-4 w-full text-left rounded-xl p-2 transition-all hover:bg-slate-50"
                       onClick={() => setShowDocModal({ open: true, doc: d })}>
-                      <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-none"
-                        style={{ background: d.type === 'blue' ? '#e0f2fe' : '#fee2e2' }}>
-                        <FileText className="h-4 w-4" style={{ color: d.type === 'blue' ? '#3b82f6' : '#ef4444' }} />
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-none shadow-sm"
+                        style={{ background: d.type === 'blue' ? '#eff6ff' : '#fff1f2', border: `1px solid ${d.type === 'blue' ? '#dbeafe' : '#fecaca'}` }}>
+                        <FileText className="h-4 w-4" style={{ color: d.type === 'blue' ? '#2563eb' : '#e11d48' }} />
                       </div>
-                      <div>
-                        <div className="text-xs font-semibold" style={{ color: 'var(--heart-text)' }}>{d.name}</div>
-                        <div className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>{d.size}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold truncate text-slate-700">{d.name}</div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{d.size} • EMHR Verified</div>
                       </div>
+                      <div className="px-2 py-1 rounded-md bg-slate-100 text-[9px] font-black text-slate-500 uppercase tracking-wider">Signed</div>
                     </button>
                   ))}
                 </div>
@@ -388,73 +408,79 @@ export default function DoctorView() {
           </div>
 
           {/* ── Right col: Medical Information + Heart Rate ── */}
-          <div className="space-y-5">
+          <div className="space-y-6">
             {/* Medical Information Card */}
-            <div className="card p-5">
-              <h3 className="text-sm font-bold mb-3" style={{ color: 'var(--heart-text)' }}>Medical Information</h3>
-              <div className="rounded-xl overflow-hidden mb-3" style={{ background: 'linear-gradient(135deg, #e0f2fe, #f0fdf4, #fce7f3)', height: 160 }}>
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-black tracking-tight" style={{ color: 'var(--heart-text)' }}>Bio-Metric Map</h3>
+                <Activity className="h-4 w-4 text-emerald-500" />
+              </div>
+              <div className="rounded-2xl overflow-hidden mb-5 shadow-inner" style={{ background: 'linear-gradient(135deg, #f0f9ff, #ecfdf5, #fdf2f8)', height: 160 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-                    <Scatter data={scatterData} fill="#10b981" opacity={0.5}>
-                    </Scatter>
+                  <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                    <Scatter data={scatterData} fill="#10b981" opacity={0.4} shape="circle" />
                   </ScatterChart>
                 </ResponsiveContainer>
               </div>
               <button onClick={() => setReportOpen(true)}
-                className="w-full py-2 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
+                className="w-full py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:bg-slate-800 hover:text-white"
                 style={{ background: 'var(--heart-bg)', color: 'var(--heart-text-secondary)', border: '1px solid var(--heart-border)' }}>
-                View Full Report
+                Analyze Full Report
               </button>
             </div>
 
             {/* Heart Rate Card */}
-            <div className="card p-5">
-              <h3 className="text-sm font-bold mb-1" style={{ color: 'var(--heart-text)' }}>Heart Rate</h3>
-              <p className="text-[10px] mb-3" style={{ color: 'var(--heart-text-muted)' }}>
-                Heart rate is in a {patient.hrStats.avg < 80 ? 'stable and healthy' : 'elevated'} state this week.
-              </p>
-              {/* Stats row */}
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                <div className="text-center p-2.5 rounded-xl" style={{ background: 'var(--heart-bg)' }}>
-                  <div className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>Average</div>
-                  <div className="text-xl font-black" style={{ color: 'var(--heart-text)' }}>{patient.hrStats.avg}
-                    <span className="text-[10px] font-normal ml-0.5">bpm</span>
-                  </div>
-                </div>
-                <div className="text-center p-2.5 rounded-xl" style={{ background: 'var(--heart-bg)' }}>
-                  <div className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>Minimum</div>
-                  <div className="text-xl font-black" style={{ color: 'var(--heart-text)' }}>{patient.hrStats.min}
-                    <span className="text-[10px] font-normal ml-0.5">bpm</span>
-                  </div>
-                </div>
-                <div className="text-center p-2.5 rounded-xl" style={{ background: 'var(--heart-bg)' }}>
-                  <div className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>Maximum</div>
-                  <div className="text-xl font-black" style={{ color: 'var(--heart-text)' }}>{patient.hrStats.max}
-                    <span className="text-[10px] font-normal ml-0.5">bpm</span>
-                  </div>
-                </div>
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-black tracking-tight" style={{ color: 'var(--heart-text)' }}>Heart Rate Analysis</h3>
+                <Heart className="h-4 w-4 text-rose-500 animate-pulse" />
               </div>
+              <p className="text-[11px] font-medium mb-5 leading-relaxed" style={{ color: 'var(--heart-text-muted)' }}>
+                Baseline comparison indicates a {patient.hrStats.avg < 80 ? 'stable' : 'moderately elevated'} clinical state.
+              </p>
+              
+              {/* Stats row */}
+              <div className="grid grid-cols-3 gap-3 mb-6">
+                {[
+                  { label: 'AVG', val: patient.hrStats.avg, color: '#0f172a' },
+                  { label: 'MIN', val: patient.hrStats.min, color: '#64748b' },
+                  { label: 'MAX', val: patient.hrStats.max, color: '#e11d48' },
+                ].map((s, i) => (
+                  <div key={i} className="heart-rate-stat text-center p-3 rounded-2xl" style={{ background: 'var(--heart-bg)' }}>
+                    <div className="text-[9px] font-black text-slate-400 tracking-tighter uppercase">{s.label}</div>
+                    <div className="text-xl font-black mt-0.5" style={{ color: s.color }}>{s.val}</div>
+                    <div className="text-[8px] font-bold text-slate-400">BPM</div>
+                  </div>
+                ))}
+              </div>
+
               {/* Chart */}
-              <ResponsiveContainer width="100%" height={180}>
-                <ScatterChart margin={{ top: 5, right: 5, bottom: 15, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis type="category" dataKey="x" tick={{ fontSize: 9, fill: '#9ca3af' }} tickLine={false} axisLine={false}
-                    tickFormatter={(v: number) => ['M', 'T', 'W', 'T', 'F', 'S', 'S'][v] || ''} name="Day" allowDuplicatedCategory={false} />
-                  <YAxis type="number" dataKey="y" domain={[0, 160]} tick={{ fontSize: 9, fill: '#9ca3af' }} tickLine={false} axisLine={false} name="BPM" />
-                  <Tooltip contentStyle={{ borderRadius: 8, fontSize: 11 }} />
-                  <Scatter data={patient.hrData.map((d, i) => ({ x: i, y: d.thisWeek, label: 'This week' }))} fill="#10b981" />
-                  <Scatter data={patient.hrData.map((d, i) => ({ x: i, y: d.lastWeek, label: 'Last week' }))} fill="#fbbf24" />
-                </ScatterChart>
-              </ResponsiveContainer>
+              <div className="h-[200px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ScatterChart margin={{ top: 5, right: 5, bottom: 20, left: -20 }}>
+                    <CartesianGrid strokeDasharray="4 4" vertical={false} />
+                    <XAxis type="category" dataKey="x" tick={{ fontSize: 10, fontWeight: 700, fill: '#cbd5e1' }} tickLine={false} axisLine={false}
+                      tickFormatter={(v: number) => ['M', 'T', 'W', 'T', 'F', 'S', 'S'][v] || ''} name="Day" />
+                    <YAxis type="number" dataKey="y" domain={[0, 160]} tick={{ fontSize: 10, fontWeight: 700, fill: '#cbd5e1' }} tickLine={false} axisLine={false} />
+                    <Tooltip 
+                      cursor={{ strokeDasharray: '3 3' }}
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', fontSize: '10px', fontWeight: 'bold' }}
+                    />
+                    <Scatter name="This week" data={patient.hrData.map((d, i) => ({ x: i, y: d.thisWeek }))} fill="#10b981" />
+                    <Scatter name="Last week" data={patient.hrData.map((d, i) => ({ x: i, y: d.lastWeek }))} fill="#f59e0b" />
+                  </ScatterChart>
+                </ResponsiveContainer>
+              </div>
+
               {/* Legend */}
-              <div className="flex items-center justify-center gap-5 mt-2">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full" style={{ background: '#10b981' }} />
-                  <span className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>This week</span>
+              <div className="flex items-center justify-center gap-6 mt-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full shadow-sm" style={{ background: '#10b981' }} />
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Current</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full" style={{ background: '#fbbf24' }} />
-                  <span className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>Last week</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full shadow-sm" style={{ background: '#f59e0b' }} />
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Previous</span>
                 </div>
               </div>
             </div>
@@ -547,13 +573,15 @@ File Size: ${showDocModal.doc.size}`}
   );
 }
 
-function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function InfoRow({ icon, label, value }: { icon: React.ReactElement; label: string; value: string }) {
   return (
-    <div className="flex items-start gap-2">
-      <div className="mt-0.5 [&>svg]:h-3.5 [&>svg]:w-3.5" style={{ color: 'var(--heart-text-muted)' }}>{icon}</div>
-      <div>
-        <div className="text-[10px]" style={{ color: 'var(--heart-text-muted)' }}>{label}</div>
-        <div className="text-xs font-semibold" style={{ color: 'var(--heart-text)' }}>{value}</div>
+    <div className="flex items-start gap-3 group">
+      <div className="mt-1 flex-none flex items-center justify-center w-7 h-7 rounded-lg bg-slate-50 border border-slate-100 text-slate-400 group-hover:text-emerald-500 group-hover:bg-emerald-50 group-hover:border-emerald-100 transition-all">
+        {React.cloneElement(icon, { size: 14 })}
+      </div>
+      <div className="min-w-0">
+        <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-0.5">{label}</div>
+        <div className="text-[11px] font-bold text-slate-700 truncate">{value}</div>
       </div>
     </div>
   );
