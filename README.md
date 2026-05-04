@@ -260,4 +260,4 @@ Transforms decisions into traffic light statuses with trends and warnings.
 🫀
 
 ---
-&copy; 2026 HEART Team. All rights reserved.
+&copy; 2026 PulseX Team. All rights reserved.
