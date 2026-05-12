@@ -72,7 +72,7 @@ const patientProfiles: PatientProfile[] = [
   {
     id: 'pat_003', name: 'Fatimah binti Hassan', gender: 'Female', age: 85,
     dob: '02 November 1940', phone: '+6013 987 6543', email: 'fatimah.hassan@email.com',
-    address: '12 Lorong Damai, Petaling Jaya 46000', ic: '401102-10-6634',
+    address: '18, Jalan Bukit 11/2', ic: '401102-10-6634',
     photo: 'FH',
     medicalHistory: [
       { icon: '🧠', name: 'Stroke History', desc: 'Previous ischemic stroke requiring ongoing care.' },
@@ -102,7 +102,7 @@ const patientProfiles: PatientProfile[] = [
   {
     id: 'pat_002', name: 'Lee Chong Wei', gender: 'Male', age: 73,
     dob: '21 June 1952', phone: '+6011 222 3344', email: 'lee.cw@email.com',
-    address: '88 Taman Sri Hartamas, KL 50480', ic: '520621-14-7788',
+    address: '37, Jalan Sri Hartamas 17', ic: '520621-14-7788',
     photo: 'LC',
     medicalHistory: [
       { icon: '🦴', name: 'Osteoporosis', desc: 'Reduced bone density increasing fracture risk.' },
@@ -132,7 +132,7 @@ const patientProfiles: PatientProfile[] = [
   {
     id: 'pat_004', name: 'Rajendran a/l Muthu', gender: 'Male', age: 75,
     dob: '30 August 1950', phone: '+6014 555 6677', email: 'rajendran.m@email.com',
-    address: '23 Jalan Ampang, KL 50450', ic: '500830-14-9911',
+    address: '53, Jalan SS 2/77, SS 2', ic: '500830-14-9911',
     photo: 'RM',
     medicalHistory: [
       { icon: '🩺', name: 'Type 2 Diabetes', desc: 'Insulin-dependent with HbA1c monitoring.' },
@@ -162,7 +162,7 @@ const patientProfiles: PatientProfile[] = [
   {
     id: 'pat_005', name: 'Mary Tan Siew Lian', gender: 'Female', age: 82,
     dob: '15 March 1943', phone: '+6016 888 9900', email: 'mary.tan@email.com',
-    address: '56 Bangsar South, KL 59200', ic: '430315-14-2244',
+    address: '97, Jalan Ara, Bangsar', ic: '430315-14-2244',
     photo: 'MT',
     medicalHistory: [
       { icon: '🫀', name: 'Heart Failure', desc: 'Congestive heart failure with preserved EF.' },
@@ -191,12 +191,7 @@ const patientProfiles: PatientProfile[] = [
   },
 ];
 
-/* ── Scatter chart data for "Medical Information" visual ── */
-const scatterData = Array.from({ length: 40 }, (_, i) => ({
-  x: Math.floor(Math.random() * 7),
-  y: 40 + Math.floor(Math.random() * 120),
-  z: 3 + Math.random() * 6,
-}));
+
 
 export default function DoctorView() {
   const [selectedId, setSelectedId] = useState(patientProfiles[0].id);
@@ -232,7 +227,7 @@ export default function DoctorView() {
             </div>
           </div>
         </div>
-        
+
         {/* Search */}
         <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl mb-6 sidebar-search border border-transparent focus-within:border-emerald-200 transition-all shadow-sm">
           <Search className="h-4 w-4" style={{ color: 'var(--heart-text-muted)' }} />
@@ -299,7 +294,7 @@ export default function DoctorView() {
             {/* Patient Information Card */}
             <div className="card p-6 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full opacity-50 -mr-10 -mt-10" />
-              
+
               <div className="flex flex-col md:flex-row gap-8 relative z-10">
                 {/* Photo Container */}
                 <div className="flex-none">
@@ -416,11 +411,16 @@ export default function DoctorView() {
                 <Activity className="h-4 w-4 text-emerald-500" />
               </div>
               <div className="rounded-2xl overflow-hidden mb-5 shadow-inner" style={{ background: 'linear-gradient(135deg, #f0f9ff, #ecfdf5, #fdf2f8)', height: 160 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                    <Scatter data={scatterData} fill="#10b981" opacity={0.4} shape="circle" />
-                  </ScatterChart>
-                </ResponsiveContainer>
+                <iframe
+                  title="Patient Location"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  loading="lazy"
+                  allowFullScreen
+                  referrerPolicy="no-referrer-when-downgrade"
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(patient.address)}&t=&z=13&ie=UTF8&iwloc=&output=embed`}
+                />
               </div>
               <button onClick={() => setReportOpen(true)}
                 className="w-full py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:bg-slate-800 hover:text-white"
@@ -438,7 +438,7 @@ export default function DoctorView() {
               <p className="text-[11px] font-medium mb-5 leading-relaxed" style={{ color: 'var(--heart-text-muted)' }}>
                 Baseline comparison indicates a {patient.hrStats.avg < 80 ? 'stable' : 'moderately elevated'} clinical state.
               </p>
-              
+
               {/* Stats row */}
               <div className="grid grid-cols-3 gap-3 mb-6">
                 {[
@@ -462,7 +462,7 @@ export default function DoctorView() {
                     <XAxis type="category" dataKey="x" tick={{ fontSize: 10, fontWeight: 700, fill: '#cbd5e1' }} tickLine={false} axisLine={false}
                       tickFormatter={(v: number) => ['M', 'T', 'W', 'T', 'F', 'S', 'S'][v] || ''} name="Day" />
                     <YAxis type="number" dataKey="y" domain={[0, 160]} tick={{ fontSize: 10, fontWeight: 700, fill: '#cbd5e1' }} tickLine={false} axisLine={false} />
-                    <Tooltip 
+                    <Tooltip
                       cursor={{ strokeDasharray: '3 3' }}
                       contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', fontSize: '10px', fontWeight: 'bold' }}
                     />
@@ -559,7 +559,7 @@ File Size: ${showDocModal.doc.size}`}
                   Click to Sign
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => { alert('Document successfully signed and saved to EMHR.'); setShowDocModal({ open: false, doc: null }); }}
                 className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white transition-all hover:scale-[1.02]"
                 style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
