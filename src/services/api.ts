@@ -37,6 +37,11 @@ export interface EnhancedInput extends SnapshotInput {
   previousDecisions?: any[];
 }
 
+export interface PatientRecord extends SnapshotInput {
+  icNumber: string;
+  admissionDate: string;
+}
+
 export interface ChatResponse {
   success: boolean;
   reply: string;
@@ -136,5 +141,26 @@ export async function sendChatMessage(message: string, patientContext?: any): Pr
   } catch (err: any) {
     console.error('[HEART AI] Chat error:', err);
     return { success: false, reply: '', timestamp: new Date().toISOString() };
+  }
+}
+
+/**
+ * Add a new patient to the Firestore system storage
+ */
+export async function addPatient(patient: SnapshotInput): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/patients`, { // Ensure your backend has this endpoint
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patient),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to save patient');
+
+    return { success: true, id: data.id };
+  } catch (err: any) {
+    console.error('[HEART Storage] Error adding patient:', err);
+    return { success: false, error: err.message };
   }
 }

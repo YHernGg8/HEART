@@ -11,6 +11,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { initializeRAGSystem, retrieveRelevantGuidelines, buildRAGEnrichedPrompt } from './rag-system.js';
 import { VertexAI } from '@google-cloud/vertexai';
+import admin from 'firebase-admin';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,7 +61,7 @@ function getFallbackMockResponse(prompt: string, systemPrompt: string) {
   if (systemPrompt.includes('HEART AI Assistant')) {
     return { response: { text: () => "This is a fallback response from HEART AI. The Google Gemini API is currently rate-limited (Quota Exceeded) for this API key. But I am here to help you monitor patients!" } };
   }
-  
+
   const fallbackJSON = {
     riskScore: 7,
     action: "CLINIC_VISIT",
@@ -107,11 +108,11 @@ async function generateContent(prompt: string, systemPrompt: string, config: any
       systemInstruction: { parts: [{ text: systemPrompt }] },
       generationConfig: config
     });
-    
+
     const request = {
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
     };
-    
+
     const responseStream = await generativeModel.generateContent(request);
     const data = await responseStream.response;
     const textVal = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -463,6 +464,31 @@ Provide your clinical assessment.`;
   } catch (error: any) {
     console.error('❌ Batch decision error:', error.message);
     res.status(500).json({ error: 'Batch decision failed', details: error.message });
+  }
+});
+
+/* ─── Add Patient to Firestore ─── */
+app.post('/api/patients', async (req, res) => {
+  try {
+    const patientData = req.body;
+
+    // Use the firebase-admin SDK to save the patient record
+    const docRef = await admin.firestore().collection('patients').add({
+      ...patientData,
+      status: 'REGISTERED',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    console.log(`✅ [HEART Storage] Patient stored with ID: ${docRef.id}`);
+
+    res.status(201).json({
+      success: true,
+      id: docRef.id,
+      message: 'Patient successfully registered in Firestore'
+    });
+  } catch (error: any) {
+    console.error('❌ [HEART Storage] Firestore Error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
