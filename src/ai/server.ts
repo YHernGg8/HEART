@@ -11,6 +11,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { initializeRAGSystem, retrieveRelevantGuidelines, buildRAGEnrichedPrompt } from './rag-system.js';
 import { VertexAI } from '@google-cloud/vertexai';
+import mapsRouter from './maps.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,7 +61,7 @@ function getFallbackMockResponse(prompt: string, systemPrompt: string) {
   if (systemPrompt.includes('HEART AI Assistant')) {
     return { response: { text: () => "This is a fallback response from HEART AI. The Google Gemini API is currently rate-limited (Quota Exceeded) for this API key. But I am here to help you monitor patients!" } };
   }
-  
+
   const fallbackJSON = {
     riskScore: 7,
     action: "CLINIC_VISIT",
@@ -107,11 +108,11 @@ async function generateContent(prompt: string, systemPrompt: string, config: any
       systemInstruction: { parts: [{ text: systemPrompt }] },
       generationConfig: config
     });
-    
+
     const request = {
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
     };
-    
+
     const responseStream = await generativeModel.generateContent(request);
     const data = await responseStream.response;
     const textVal = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -193,6 +194,9 @@ const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
 app.use(express.json());
 
+/* ─── Mount Routers ─── */
+app.use('/api/maps', mapsRouter);
+
 /* ─── Serve static frontend in production ─── */
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.resolve(__dirname, '../../dist');
@@ -206,6 +210,15 @@ app.get('/health', (_req, res) => {
     service: 'HEART AI Backend',
     timestamp: new Date().toISOString(),
     model: 'gemini-2.5-flash',
+  });
+});
+
+/* ─── Root Endpoint ─── */
+app.get('/', (_req, res) => {
+  res.json({
+    message: 'Welcome to the HEART AI Backend API.',
+    docs: 'Please refer to the README.md for endpoint documentation.',
+    healthCheck: '/health'
   });
 });
 
@@ -485,5 +498,10 @@ app.listen(PORT, () => {
   console.log(`   POST /api/care-decision/batch`);
   console.log(`   POST /api/chat`);
   console.log(`   GET  /api/demo/patients`);
-  console.log(`   GET  /health\n`);
+  console.log(`   GET  /health`);
+  console.log(`   --- Maps API ---`);
+  console.log(`   POST /api/maps/geocode`);
+  console.log(`   POST /api/maps/reverse-geocode`);
+  console.log(`   GET  /api/maps/places`);
+  console.log(`   POST /api/maps/distance\n`);
 });
