@@ -239,6 +239,32 @@ Transforms decisions into traffic light statuses with trends and warnings.
 4. **Performance Monitoring**
 5. **Scale for Production**
 
+## 🗺️ Google Maps Integration
+
+The HEART backend securely integrates with Google Maps APIs to provide geographic intelligence for the dashboard.
+
+### Configuration
+1. Obtain a **Google Maps API Key** from the [Google Cloud Console](https://console.cloud.google.com).
+2. Enable the following APIs in your Google Cloud Project:
+   - **Geocoding API**
+   - **Places API**
+   - **Distance Matrix API**
+3. Add the key to your `.env` file as `GOOGLE_MAPS_API_KEY`.
+4. Ensure the key is securely restricted (e.g., by IP addresses) in the Google Cloud Console, as it is used server-side.
+
+### Local Testing
+Start the backend server:
+```bash
+npm run server:dev
+```
+Test the geocoding endpoint using curl (ensure you include a valid Bearer token for authentication):
+```bash
+curl -X POST http://localhost:3000/api/maps/geocode \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer test_token" \
+  -d '{"address": "Kuala Lumpur City Centre"}'
+```
+
 ## 🏅 Hackathon Positioning
 
 **Problem**: ED overcrowding due to late-stage elderly emergencies.
