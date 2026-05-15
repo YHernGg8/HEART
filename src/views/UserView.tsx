@@ -64,7 +64,6 @@ export default function UserView() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResponse, setAiResponse] = useState<AIDecision | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
-  const [demoScenario, setDemoScenario] = useState<'resting' | 'running' | 'attack'>('resting');
 
   const handleCheckIn = async () => {
     setCheckedIn(true);
@@ -87,18 +86,6 @@ export default function UserView() {
     }
   };
 
-  /* ── Keyboard Shortcuts for Demo ── */
-  useEffect(() => {
-    if (activeTab !== 'watch') return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === '1') setDemoScenario('resting');
-      if (e.key === '2') setDemoScenario('running');
-      if (e.key === '3') setDemoScenario('attack');
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab]);
-
   /* ── Status config ── */
   const statusColors: Record<string, { dot: string; text: string }> = {
     green:  { dot: '#10b981', text: 'Loved one is indoors' },
@@ -109,9 +96,9 @@ export default function UserView() {
   const status = statusColors[riskColor];
 
   return (
-    <div className="min-h-[calc(100vh-3.5rem)] flex flex-col items-center" style={{ background: 'var(--heart-bg)' }}>
+    <div className="min-h-[calc(100vh-3.5rem)] flex flex-col items-center relative" style={{ background: 'var(--heart-bg)' }}>
       {/* ── Phone-width container ── */}
-      <div className="w-full px-4 pt-5 pb-24 max-w-[420px] space-y-5">
+      <div className="w-full max-w-[420px] px-4 pt-5 pb-24 space-y-5">
 
         {activeTab === 'home' && (
           <>
@@ -389,30 +376,10 @@ export default function UserView() {
         )}
 
         {activeTab === 'watch' && (
-          <div className="fixed inset-0 z-30 flex flex-col items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%)' }}>
-            {/* ── Ultra-Sleek Demo Control Pill (Glassmorphism) ── */}
-            <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-50 flex justify-center opacity-30 hover:opacity-100 transition-opacity duration-300">
-              <div className="flex items-center gap-1 p-1 rounded-full backdrop-blur-md" style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                <button 
-                  onClick={() => setDemoScenario('resting')}
-                  className={`px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ${demoScenario === 'resting' ? 'bg-blue-500/80 text-white shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'text-gray-400 hover:text-white'}`}>
-                  1 • Rest
-                </button>
-                <button 
-                  onClick={() => setDemoScenario('running')}
-                  className={`px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ${demoScenario === 'running' ? 'bg-green-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'text-gray-400 hover:text-white'}`}>
-                  2 • Run
-                </button>
-                <button 
-                  onClick={() => setDemoScenario('attack')}
-                  className={`px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ${demoScenario === 'attack' ? 'bg-red-600/80 text-white shadow-[0_0_15px_rgba(239,68,68,0.6)] animate-pulse' : 'text-gray-400 hover:text-white'}`}>
-                  3 • Attack
-                </button>
-              </div>
+          <div className="absolute inset-0 flex items-center justify-center pt-5 pb-24" style={{ background: 'var(--heart-bg)' }}>
+            <div className="w-full h-full overflow-y-auto">
+              <SmartWatchView />
             </div>
-
-            {/* Centered Watch */}
-            <SmartWatchView scenario={demoScenario} />
           </div>
         )}
       </div>

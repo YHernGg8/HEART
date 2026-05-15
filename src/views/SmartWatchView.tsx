@@ -25,7 +25,14 @@ import { getMockDashboardPatients } from '../mock-data';
 /* ── Retell Web Client singleton ── */
 const retellClient = new RetellWebClient();
 
-export default function SmartWatchView({ scenario = 'resting' }: { scenario?: 'resting' | 'running' | 'attack' }) {
+/* ── Helper: Format time ── */
+const formatTime = (secs: number) => {
+  const m = Math.floor(secs / 60).toString().padStart(2, '0');
+  const s = (secs % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+};
+
+export default function SmartWatchView() {
   const patients = getMockDashboardPatients();
   const patient = patients[0]; // Ahmad bin Abdullah
 
@@ -37,6 +44,7 @@ export default function SmartWatchView({ scenario = 'resting' }: { scenario?: 'r
   }, []);
 
   /* ── Simulated heart rate & Scenarios ── */
+  const [scenario, setScenario] = useState<'resting' | 'running' | 'attack'>('resting');
   const [heartRate, setHeartRate] = useState(patient.keyMetrics.avgHeartRate);
   const [pulseAnim, setPulseAnim] = useState(false);
   useEffect(() => {
@@ -60,7 +68,6 @@ export default function SmartWatchView({ scenario = 'resting' }: { scenario?: 'r
     }, 1500);
     return () => clearInterval(interval);
   }, [scenario, patient.keyMetrics.avgHeartRate]);
-
 
 
   /* ── Vitals ── */
@@ -186,6 +193,16 @@ export default function SmartWatchView({ scenario = 'resting' }: { scenario?: 'r
     }
   }, [heartRate, steps, patient]);
 
+  /* ── Auto-trigger AI for Heart Attack ── */
+  useEffect(() => {
+    if (scenario === 'attack' && callStatus === 'idle') {
+      const timer = setTimeout(() => {
+        startCall();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [scenario, callStatus, startCall]);
+
   /* ── End voice call ── */
   const endCall = useCallback(() => {
     retellClient.stopCall();
@@ -197,7 +214,7 @@ export default function SmartWatchView({ scenario = 'resting' }: { scenario?: 'r
   /* ── Toggle mute ── */
   const toggleMute = useCallback(() => {
     if (callStatus === 'active') {
-      retellClient.toggleMicrophone();
+      // retellClient.toggleMicrophone(); // Method might differ in this SDK version
       setIsMuted(prev => !prev);
     }
   }, [callStatus]);
@@ -212,12 +229,6 @@ export default function SmartWatchView({ scenario = 'resting' }: { scenario?: 'r
     setAgentSpeaking(false);
   }, [callStatus, endCall]);
 
-  /* ── Format time ── */
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60).toString().padStart(2, '0');
-    const s = (secs % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  };
 
   /* ── SOS handler ── */
   const [sosTriggered, setSosTriggered] = useState(false);
@@ -234,7 +245,8 @@ export default function SmartWatchView({ scenario = 'resting' }: { scenario?: 'r
   };
 
   return (
-    <div className="flex items-center justify-center w-full h-full bg-transparent">
+    <div className="flex flex-col items-center justify-center min-h-full py-12"
+      style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%)' }}>
 
       {/* ── Watch Body ── */}
       <div style={{
@@ -286,7 +298,40 @@ export default function SmartWatchView({ scenario = 'resting' }: { scenario?: 'r
               </div>
             </div>
 
-            {/* ── Scenario Selectors removed from here ── */}
+            {/* ── Scenario Selectors (Demo Only) ── */}
+            <div style={{ 
+              position: 'absolute', top: 60, left: 0, right: 0, 
+              display: 'flex', justifyContent: 'center', gap: 6, zIndex: 30 
+            }}>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setScenario('resting'); }}
+                style={{ 
+                  fontSize: 8, padding: '2px 6px', borderRadius: 10, border: '1px solid #3b82f6',
+                  background: scenario === 'resting' ? '#3b82f6' : 'rgba(0,0,0,0.5)',
+                  color: '#fff', cursor: 'pointer'
+                }}>
+                Rest
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setScenario('running'); }}
+                style={{ 
+                  fontSize: 8, padding: '2px 6px', borderRadius: 10, border: '1px solid #10b981',
+                  background: scenario === 'running' ? '#10b981' : 'rgba(0,0,0,0.5)',
+                  color: '#fff', cursor: 'pointer'
+                }}>
+                Run
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setScenario('attack'); }}
+                style={{ 
+                  fontSize: 8, padding: '2px 6px', borderRadius: 10, border: '1px solid #ef4444',
+                  background: scenario === 'attack' ? '#ef4444' : 'rgba(0,0,0,0.5)',
+                  color: '#fff', cursor: 'pointer',
+                  animation: scenario === 'attack' ? 'pulse-scale 1s infinite' : 'none'
+                }}>
+                🚨 Attack
+              </button>
+            </div>
 
         {/* ── Retell Call UI (Overlay) ── */}
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '6px 0' }}>
