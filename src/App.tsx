@@ -7,6 +7,7 @@ import FieldUnitView from './views/FieldUnitView';
 import HospitalView from './views/HospitalView';
 import DoctorView from './views/DoctorView';
 import LandingPage from './views/LandingPage';
+import SmartWatchView from './views/SmartWatchView';
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<LandingPage />} />
           <Route path="/user" element={<LoginGate role="patient"><UserView /></LoginGate>} />
+          <Route path="/watch" element={<SmartWatchView />} />
           <Route path="/operator" element={<LoginGate role="operator"><OperatorView /></LoginGate>} />
           <Route path="/doctor" element={<LoginGate role="doctor"><DoctorView /></LoginGate>} />
           <Route path="/field" element={<LoginGate role="field"><FieldUnitView /></LoginGate>} />

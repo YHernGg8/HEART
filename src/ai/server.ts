@@ -11,6 +11,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { initializeRAGSystem, retrieveRelevantGuidelines, buildRAGEnrichedPrompt } from './rag-system.js';
 import { VertexAI } from '@google-cloud/vertexai';
+import { registerRetellRoutes } from './retell-service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -192,6 +193,9 @@ CRITICAL RULES:
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
 app.use(express.json());
+
+/* ─── Retell AI Phone Call Routes ─── */
+registerRetellRoutes(app);
 
 /* ─── Serve static frontend in production ─── */
 if (process.env.NODE_ENV === 'production') {
