@@ -25,7 +25,7 @@ import { getMockDashboardPatients } from '../mock-data';
 /* ── Retell Web Client singleton ── */
 const retellClient = new RetellWebClient();
 
-export default function SmartWatchView() {
+export default function SmartWatchView({ scenario = 'resting' }: { scenario?: 'resting' | 'running' | 'attack' }) {
   const patients = getMockDashboardPatients();
   const patient = patients[0]; // Ahmad bin Abdullah
 
@@ -36,18 +36,32 @@ export default function SmartWatchView() {
     return () => clearInterval(timer);
   }, []);
 
-  /* ── Simulated heart rate ── */
+  /* ── Simulated heart rate & Scenarios ── */
   const [heartRate, setHeartRate] = useState(patient.keyMetrics.avgHeartRate);
   const [pulseAnim, setPulseAnim] = useState(false);
   useEffect(() => {
     const interval = setInterval(() => {
-      const base = patient.keyMetrics.avgHeartRate;
-      setHeartRate(base + Math.round((Math.random() - 0.5) * 8));
+      let base = 70;
+      let variance = 8;
+      
+      if (scenario === 'running') {
+        base = 145;
+        variance = 15;
+      } else if (scenario === 'attack') {
+        base = 195;
+        variance = 20;
+      } else {
+        base = patient.keyMetrics.avgHeartRate;
+      }
+      
+      setHeartRate(base + Math.round((Math.random() - 0.5) * variance));
       setPulseAnim(true);
       setTimeout(() => setPulseAnim(false), 300);
     }, 1500);
     return () => clearInterval(interval);
-  }, []);
+  }, [scenario, patient.keyMetrics.avgHeartRate]);
+
+
 
   /* ── Vitals ── */
   const spo2 = 97;
@@ -220,8 +234,7 @@ export default function SmartWatchView() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center"
-      style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%)' }}>
+    <div className="flex items-center justify-center w-full h-full bg-transparent">
 
       {/* ── Watch Body ── */}
       <div style={{
@@ -273,7 +286,9 @@ export default function SmartWatchView() {
               </div>
             </div>
 
-            {/* ── Heart Rate Center ── */}
+            {/* ── Scenario Selectors removed from here ── */}
+
+        {/* ── Retell Call UI (Overlay) ── */}
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '6px 0' }}>
               <div style={{ position: 'relative', width: 90, height: 90 }}>
                 {/* Pulse ring */}

@@ -1,9 +1,4 @@
-/**
- * HEART AI Backend Server
- * Uses Google Generative AI (Gemini 2.5 Flash) for clinical reasoning
- * Reads .env manually since dotenv may not be installed
- */
-
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
@@ -15,28 +10,6 @@ import { registerRetellRoutes } from './retell-service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-/* ─── Load .env manually ─── */
-function loadEnv() {
-  const envPath = path.resolve(__dirname, '../../.env');
-  if (fs.existsSync(envPath)) {
-    const lines = fs.readFileSync(envPath, 'utf-8').split('\n');
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) continue;
-      const eqIdx = trimmed.indexOf('=');
-      if (eqIdx > 0) {
-        const key = trimmed.substring(0, eqIdx).trim();
-        const value = trimmed.substring(eqIdx + 1).trim();
-        if (!process.env[key]) process.env[key] = value;
-      }
-    }
-    console.log('✅ Loaded .env from', envPath);
-  } else {
-    console.warn('⚠️ No .env file found at', envPath);
-  }
-}
-loadEnv();
 
 /* ─── Initialize RAG ─── */
 initializeRAGSystem();

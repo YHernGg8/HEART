@@ -19,6 +19,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { getMockDashboardPatients } from '../mock-data';
 import { getRiskColor } from '../types';
 import { getSnapshotDecision, type AIDecision } from '../services/api';
+import SmartWatchView from './SmartWatchView';
 
 /* ── Mock extended vitals (demo only) ── */
 function generateExtendedVitals(avgHR: number, avgSteps: number) {
@@ -58,11 +59,12 @@ export default function UserView() {
   const riskColor = getRiskColor(decision.riskScore);
 
   const vitals = generateExtendedVitals(patient.keyMetrics.avgHeartRate, patient.keyMetrics.avgSteps);
-  const [activeTab, setActiveTab] = useState<'home' | 'activity' | 'notifications'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'activity' | 'notifications' | 'watch'>('home');
   const [checkedIn, setCheckedIn] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResponse, setAiResponse] = useState<AIDecision | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [demoScenario, setDemoScenario] = useState<'resting' | 'running' | 'attack'>('resting');
 
   const handleCheckIn = async () => {
     setCheckedIn(true);
@@ -85,6 +87,18 @@ export default function UserView() {
     }
   };
 
+  /* ── Keyboard Shortcuts for Demo ── */
+  useEffect(() => {
+    if (activeTab !== 'watch') return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '1') setDemoScenario('resting');
+      if (e.key === '2') setDemoScenario('running');
+      if (e.key === '3') setDemoScenario('attack');
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab]);
+
   /* ── Status config ── */
   const statusColors: Record<string, { dot: string; text: string }> = {
     green:  { dot: '#10b981', text: 'Loved one is indoors' },
@@ -97,7 +111,7 @@ export default function UserView() {
   return (
     <div className="min-h-[calc(100vh-3.5rem)] flex flex-col items-center" style={{ background: 'var(--heart-bg)' }}>
       {/* ── Phone-width container ── */}
-      <div className="w-full max-w-[420px] px-4 pt-5 pb-24 space-y-5">
+      <div className="w-full px-4 pt-5 pb-24 max-w-[420px] space-y-5">
 
         {activeTab === 'home' && (
           <>
@@ -373,6 +387,34 @@ export default function UserView() {
             })}
           </>
         )}
+
+        {activeTab === 'watch' && (
+          <div className="fixed inset-0 z-30 flex flex-col items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%)' }}>
+            {/* ── Ultra-Sleek Demo Control Pill (Glassmorphism) ── */}
+            <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-50 flex justify-center opacity-30 hover:opacity-100 transition-opacity duration-300">
+              <div className="flex items-center gap-1 p-1 rounded-full backdrop-blur-md" style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                <button 
+                  onClick={() => setDemoScenario('resting')}
+                  className={`px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ${demoScenario === 'resting' ? 'bg-blue-500/80 text-white shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'text-gray-400 hover:text-white'}`}>
+                  1 • Rest
+                </button>
+                <button 
+                  onClick={() => setDemoScenario('running')}
+                  className={`px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ${demoScenario === 'running' ? 'bg-green-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'text-gray-400 hover:text-white'}`}>
+                  2 • Run
+                </button>
+                <button 
+                  onClick={() => setDemoScenario('attack')}
+                  className={`px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ${demoScenario === 'attack' ? 'bg-red-600/80 text-white shadow-[0_0_15px_rgba(239,68,68,0.6)] animate-pulse' : 'text-gray-400 hover:text-white'}`}>
+                  3 • Attack
+                </button>
+              </div>
+            </div>
+
+            {/* Centered Watch */}
+            <SmartWatchView scenario={demoScenario} />
+          </div>
+        )}
       </div>
 
       {/* ── Bottom Navigation Bar ── */}
@@ -382,6 +424,7 @@ export default function UserView() {
             style={{ background: 'var(--heart-surface)', boxShadow: '0 -2px 20px rgba(0,0,0,0.06)', border: '1px solid var(--heart-border-light)' }}>
             {[
               { key: 'home' as const, icon: Home, label: 'Home' },
+              { key: 'watch' as const, icon: Radio, label: 'Watch' },
               { key: 'activity' as const, icon: MapPin, label: 'Activity' },
               { key: 'notifications' as const, icon: Bell, label: 'Alerts' },
             ].map(tab => {
