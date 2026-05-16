@@ -19,6 +19,54 @@
 
 ---
 
+## 📦 Project Structure
+
+```
+HEART/
+├── src/
+│   ├── ai/                           # Backend AI engine (Express)
+│   │   ├── server.ts                 # Express server + REST endpoints
+│   │   ├── decision-flows.ts         # Decision orchestration (Vertex AI)
+│   │   ├── analytics.ts              # Trend detection & risk aggregation
+│   │   ├── rag-system.ts             # RAG controller
+│   │   ├── rag-system-vertex.ts      # Cloud Discovery Engine
+│   │   ├── rag-system-mock.ts        # Fallback corpus
+│   │   ├── retell-service.ts         # Retell AI phone call orchestration
+│   │   ├── firestore-service.ts      # Firestore CRUD
+│   │   ├── batch-processor.ts        # Batch trend computation
+│   │   ├── dashboard-service.ts      # Dashboard aggregation
+│   │   ├── schemas.ts                # Zod validation schemas
+│   │   ├── types.ts                  # Backend-specific TypeScript types
+│   │   └── mock-data.ts              # Demo scenarios
+│   ├── components/                   # React components
+│   │   ├── ChatWidget.tsx            # AI chat interface
+│   │   ├── Layout.tsx                # App layout wrapper
+│   │   └── LoginGate.tsx             # Role-based auth gate
+│   ├── views/                        # Role-based portals
+│   │   ├── UserView.tsx              # Patient/caregiver portal
+│   │   ├── DoctorView.tsx            # Primary care physician portal
+│   │   ├── HospitalView.tsx          # ED coordinator portal
+│   │   ├── FieldUnitView.tsx         # Ambulance crew portal
+│   │   ├── OperatorView.tsx          # 999 dispatch portal
+│   │   ├── SmartWatchView.tsx        # Wearable UI
+│   │   └── RoleLanding.tsx           # Role selection
+│   ├── services/
+│   │   └── api.ts                    # Frontend API client
+│   ├── App.tsx                       # React main component
+│   ├── types.ts                      # Shared frontend types
+│   ├── main.tsx                      # React entry point
+│   └── mock-data.ts                  # Frontend demo data
+├── public/                           # Static assets
+├── .env.example                      # Environment template
+├── package.json                      # Dependencies & scripts
+├── tsconfig.json                     # TypeScript config
+├── vite.config.ts                    # Vite frontend build config
+├── eslint.config.js                  # Linting rules
+└── README.md                         # This file
+```
+
+---
+
 ## 🏗️ Technology Stack
 
 ### **Frontend (Patient Caregivers & Healthcare Staff)**
@@ -595,54 +643,6 @@ npm run lint
 5. **RAG-Grounded AI** - Medical guidelines ensure defensible recommendations
 6. **Role-Based Portals** - Distinct UX for families, doctors, hospitals, operators
 7. **Fallback Resilience** - Mock RAG if Vertex AI rate-limited (graceful degradation)
-
----
-
-## 📦 Project Structure
-
-```
-HEART/
-├── src/
-│   ├── ai/                           # Backend AI engine (Express)
-│   │   ├── server.ts                 # Express server + REST endpoints
-│   │   ├── decision-flows.ts         # Decision orchestration (Vertex AI)
-│   │   ├── analytics.ts              # Trend detection & risk aggregation
-│   │   ├── rag-system.ts             # RAG controller
-│   │   ├── rag-system-vertex.ts      # Cloud Discovery Engine
-│   │   ├── rag-system-mock.ts        # Fallback corpus
-│   │   ├── retell-service.ts         # Retell AI phone call orchestration
-│   │   ├── firestore-service.ts      # Firestore CRUD
-│   │   ├── batch-processor.ts        # Batch trend computation
-│   │   ├── dashboard-service.ts      # Dashboard aggregation
-│   │   ├── schemas.ts                # Zod validation schemas
-│   │   ├── types.ts                  # Backend-specific TypeScript types
-│   │   └── mock-data.ts              # Demo scenarios
-│   ├── components/                   # React components
-│   │   ├── ChatWidget.tsx            # AI chat interface
-│   │   ├── Layout.tsx                # App layout wrapper
-│   │   └── LoginGate.tsx             # Role-based auth gate
-│   ├── views/                        # Role-based portals
-│   │   ├── UserView.tsx              # Patient/caregiver portal
-│   │   ├── DoctorView.tsx            # Primary care physician portal
-│   │   ├── HospitalView.tsx          # ED coordinator portal
-│   │   ├── FieldUnitView.tsx         # Ambulance crew portal
-│   │   ├── OperatorView.tsx          # 999 dispatch portal
-│   │   ├── SmartWatchView.tsx        # Wearable UI
-│   │   └── RoleLanding.tsx           # Role selection
-│   ├── services/
-│   │   └── api.ts                    # Frontend API client
-│   ├── App.tsx                       # React main component
-│   ├── types.ts                      # Shared frontend types
-│   ├── main.tsx                      # React entry point
-│   └── mock-data.ts                  # Frontend demo data
-├── public/                           # Static assets
-├── .env.example                      # Environment template
-├── package.json                      # Dependencies & scripts
-├── tsconfig.json                     # TypeScript config
-├── vite.config.ts                    # Vite frontend build config
-├── eslint.config.js                  # Linting rules
-└── README.md                         # This file
-```
 
 ---
 
